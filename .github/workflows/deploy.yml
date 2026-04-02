@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
+  schedule:
+    - cron: '*/10 * * * *'   # 10분마다 데이터 갱신 + 재배포
   workflow_dispatch:
 
 permissions:
@@ -23,6 +25,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ── Python: 시장 데이터 fetch ─────────────────────────
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install yfinance requests feedparser
+
+      - name: Fetch market data
+        run: python scripts/fetch_data.py
+        continue-on-error: true   # 데이터 fetch 실패해도 빌드 계속
+
+      # ── Node: React 빌드 ─────────────────────────────────
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -32,6 +47,7 @@ jobs:
       - run: chmod +x node_modules/.bin/vite
       - run: npm run build
 
+      # ── GitHub Pages 배포 ─────────────────────────────────
       - uses: actions/configure-pages@v4
 
       - uses: actions/upload-pages-artifact@v3
