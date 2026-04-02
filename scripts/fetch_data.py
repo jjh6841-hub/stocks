@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import requests
 import yfinance as yf
 import feedparser
+from deep_translator import GoogleTranslator
 
 OUT = os.path.join(os.path.dirname(__file__), '..', 'public', 'market-data.json')
 
@@ -142,13 +143,29 @@ def fetch_fear_greed():
     return {'value': 35, 'label': 'Fear'}
 
 
+_translator = GoogleTranslator(source='auto', target='ko')
+
+def is_korean(text: str) -> bool:
+    return any('\uAC00' <= c <= '\uD7A3' for c in text)
+
+def translate_title(title: str) -> str:
+    if is_korean(title):
+        return title
+    try:
+        result = _translator.translate(title)
+        return result if result else title
+    except Exception as e:
+        print(f"  번역 실패: {e}", file=sys.stderr)
+        return title
+
+
 def fetch_rss(url, source, n=7):
     items = []
     try:
         feed = feedparser.parse(url)
         for e in feed.entries[:n]:
-            title = (e.get('title') or '').strip()
-            if not title: continue
+            title_orig = (e.get('title') or '').strip()
+            if not title_orig: continue
             pub = e.get('published_parsed')
             if pub:
                 from time import mktime
@@ -157,10 +174,12 @@ def fetch_rss(url, source, n=7):
                 t = f'{d}분 전' if d < 60 else f'{d//60}시간 전' if d < 1440 else dt.strftime('%m/%d')
             else:
                 t = '—'
-            meta = score(title)
-            items.append({'id': abs(hash(title)) % 10_000_000,
-                          'title': title, 'source': source,
-                          'time': t, 'url': e.get('link','#'), **meta})
+            meta = score(title_orig)
+            title_ko = translate_title(title_orig)
+            items.append({'id': abs(hash(title_orig)) % 10_000_000,
+                          'title': title_ko, 'titleOrig': title_orig,
+                          'source': source, 'time': t,
+                          'url': e.get('link','#'), **meta})
     except Exception as ex:
         print(f"RSS {source}: {ex}", file=sys.stderr)
     return items
