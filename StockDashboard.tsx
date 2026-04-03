@@ -251,6 +251,7 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
     if(row.length===7){weeks.push(row);row=[];}
   }
   if(row.length>0){while(row.length<7)row.push(null);weeks.push(row);}
+  while(weeks.length<6){weeks.push(Array(7).fill(null));} // 항상 6행 고정
 
   return (
     <div style={{background:'#0d1b2e',borderRadius:'8px',padding:'16px',border:'1px solid #1a3050'}}>
@@ -275,14 +276,14 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
         {weeks.map((wk,wi)=>(
           <div key={wi} style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'3px'}}>
             {wk.map((day,di)=>{
-              if(!day) return <div key={di} style={{minHeight:'76px',background:'rgba(6,13,26,.6)',borderRadius:'6px'}}/>;
+              if(!day) return <div key={di} style={{height:'78px',background:'rgba(6,13,26,.6)',borderRadius:'6px'}}/>;
               const ds=`${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
               const isT=ds===today;
               const dayEvs=events.filter(e=>e.date===ds);
               const isPast=ds<today;
               return (
                 <div key={di} style={{
-                  minHeight:'76px',
+                  height:'78px',overflow:'hidden',
                   background:isT?'rgba(64,196,255,.08)':isPast?'rgba(10,22,40,.5)':'#0a1628',
                   borderRadius:'6px',padding:'4px',
                   border:isT?'1px solid #40c4ff66':'1px solid #1a2535',
@@ -591,9 +592,8 @@ export default function StockDashboard() {
   const [sparks,setSparks]= useState<Record<string,number[]>>({});
   const [loading,setLoad] = useState(true);
   const [stale,setStale]  = useState(false);
-  const [tab,setTab]      = useState<'news'|'cal'|'chart'|'coin'|'forex'|'com'>('news');
+  const [tab,setTab]      = useState<'news'|'cal'|'coin'|'forex'|'com'>('news');
   const [nf,setNF]        = useState('all');
-  const [chartSym,setCS]  = useState('NASDAQ:NVDA');
   const [alerts,setAlerts]= useState<{id:number;text:string;type:string}[]>([]);
 
   const addAlert=(text:string,type:string)=>{
@@ -660,9 +660,6 @@ export default function StockDashboard() {
   ];
   const filteredNews=nf==='all'?news:nf==='trump'?news.filter((n:any)=>n.isTrump):news.filter((n:any)=>n.category===nf);
   const updTime=mdata?.updatedAt?new Date(mdata.updatedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):null;
-  const CHARTS=[['NASDAQ:NVDA','엔비디아'],['NASDAQ:MSFT','마이크로소프트'],['NYSE:LMT','록히드마틴'],
-    ['KRX:005930','삼성전자'],['KRX:000660','SK하이닉스'],['BINANCE:BTCUSDT','비트코인'],
-    ['TVC:GOLD','금'],['TVC:USOIL','WTI원유'],['INDEX:SPX','S&P500']];
 
   const tabS=(k:typeof tab):React.CSSProperties=>({padding:'6px 10px',border:'none',cursor:'pointer',fontSize:'12px',fontFamily:'inherit',borderBottom:tab===k?'2px solid #40c4ff':'2px solid transparent',background:'transparent',color:tab===k?'#40c4ff':'#546e7a',fontWeight:tab===k?'bold':'normal',whiteSpace:'nowrap' as const});
   const fBtnS=(k:string):React.CSSProperties=>({padding:'3px 10px',borderRadius:'4px',border:`1px solid ${nf===k?'#40c4ff':'#1a2535'}`,background:nf===k?'#40c4ff22':'transparent',color:nf===k?'#40c4ff':'#546e7a',cursor:'pointer',fontSize:'13px',fontFamily:'inherit'});
@@ -738,44 +735,44 @@ export default function StockDashboard() {
           </div>
         )}
 
-        {/* ── 주요 지수 (compact 8-col 카드) ─────────────────────────── */}
-        <div style={{marginBottom:'12px'}}>
-          <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>
-            📊 주요 지수 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 10분 갱신</span>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'7px'}}>
-            {IDX_META.map(m=>{
-              const q=quotes[m.yf]; const c=clr(q?.changePct??0);
-              const p52=q&&q.high52w&&q.low52w&&q.high52w!==q.low52w
-                ?((q.price-q.low52w)/(q.high52w-q.low52w))*100:null;
-              const fromATH=q?((m.ath-q.price)/m.ath*100):null;
-              return (
-                <div key={m.yf} style={{background:'#0d1b2e',border:'1px solid #1a3050',borderLeft:`3px solid ${c}`,borderRadius:'6px',padding:'8px 10px'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}}>
-                    <span style={{fontSize:'11px',color:'#546e7a',fontWeight:'600',letterSpacing:'1px'}}>{m.sym}</span>
-                    {loading||!q?<Spinner s={12}/>:
-                      <span style={{fontSize:'12px',fontWeight:'700',color:c}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</span>}
-                  </div>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
-                    <span style={{fontSize:'17px',fontWeight:'700',color:'#eceff1'}}>{loading||!q?'—':fmt(q.price)}</span>
-                    {fromATH!=null&&<span style={{fontSize:'10px',color:'#37474f'}}>ATH -{fromATH.toFixed(1)}%</span>}
-                  </div>
-                  {p52!=null&&(
-                    <div style={{height:'3px',background:'#1a2535',borderRadius:'2px'}}>
-                      <div style={{height:'100%',width:`${Math.min(100,p52)}%`,background:p52<20?'#00e676':p52>80?'#ff5252':'#40c4ff',borderRadius:'2px'}}/>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── 메인: 좌(섹터+투자자+분석) / 우(탭패널) ──────────────────── */}
+        {/* ── 메인: 좌(지수+섹터+투자자+분석) / 우(탭패널) ────────────── */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 420px',gap:'12px',alignItems:'start'}}>
 
           {/* 좌열 */}
           <div>
+            {/* 주요 지수 compact */}
+            <div style={{marginBottom:'10px'}}>
+              <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>
+                📊 주요 지수 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 10분 갱신</span>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'7px'}}>
+                {IDX_META.map(m=>{
+                  const q=quotes[m.yf]; const c=clr(q?.changePct??0);
+                  const p52=q&&q.high52w&&q.low52w&&q.high52w!==q.low52w
+                    ?((q.price-q.low52w)/(q.high52w-q.low52w))*100:null;
+                  const fromATH=q?((m.ath-q.price)/m.ath*100):null;
+                  return (
+                    <div key={m.yf} style={{background:'#0d1b2e',border:'1px solid #1a3050',borderLeft:`3px solid ${c}`,borderRadius:'6px',padding:'8px 10px'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}}>
+                        <span style={{fontSize:'11px',color:'#546e7a',fontWeight:'600',letterSpacing:'1px'}}>{m.sym}</span>
+                        {loading||!q?<Spinner s={12}/>:
+                          <span style={{fontSize:'12px',fontWeight:'700',color:c}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</span>}
+                      </div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
+                        <span style={{fontSize:'17px',fontWeight:'700',color:'#eceff1'}}>{loading||!q?'—':fmt(q.price)}</span>
+                        {fromATH!=null&&<span style={{fontSize:'10px',color:'#37474f'}}>ATH -{fromATH.toFixed(1)}%</span>}
+                      </div>
+                      {p52!=null&&(
+                        <div style={{height:'3px',background:'#1a2535',borderRadius:'2px'}}>
+                          <div style={{height:'100%',width:`${Math.min(100,p52)}%`,background:p52<20?'#00e676':p52>80?'#ff5252':'#40c4ff',borderRadius:'2px'}}/>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* 섹터 ETF */}
             <div style={{marginBottom:'10px'}}>
               <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>🔥 섹터 ETF & 종목 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 실제 등락률</span></div>
@@ -797,7 +794,6 @@ export default function StockDashboard() {
             <div style={{display:'flex',borderBottom:'1px solid #1a2535',background:'#060d1a',overflowX:'auto'}}>
               <button style={tabS('news')}  onClick={()=>setTab('news')}>📰 뉴스</button>
               <button style={tabS('cal')}   onClick={()=>setTab('cal')}>📅 캘린더</button>
-              <button style={tabS('chart')} onClick={()=>setTab('chart')}>📈 차트</button>
               <button style={tabS('coin')}  onClick={()=>setTab('coin')}>₿ 코인</button>
               <button style={tabS('forex')} onClick={()=>setTab('forex')}>💱 환율</button>
               <button style={tabS('com')}   onClick={()=>setTab('com')}>🪙 원자재</button>
@@ -843,20 +839,6 @@ export default function StockDashboard() {
 
               {/* 캘린더 */}
               {tab==='cal'&&<GoogleCalendar events={CALENDAR} today={today}/>}
-
-              {/* 차트 */}
-              {tab==='chart'&&(
-                <div>
-                  <div style={{display:'flex',gap:'5px',marginBottom:'8px',flexWrap:'wrap'}}>
-                    {CHARTS.map(([s,n])=>(
-                      <button key={s} onClick={()=>setCS(s)} style={{padding:'3px 8px',borderRadius:'4px',border:`1px solid ${chartSym===s?'#40c4ff':'#1a2535'}`,background:chartSym===s?'#40c4ff22':'transparent',color:chartSym===s?'#40c4ff':'#546e7a',cursor:'pointer',fontSize:'12px',fontFamily:'inherit'}}>{n}</button>
-                    ))}
-                  </div>
-                  <div style={{background:'#06111f',border:'1px solid #1a2535',borderRadius:'6px',overflow:'hidden'}}>
-                    <TVChart sym={chartSym} h={360}/>
-                  </div>
-                </div>
-              )}
 
               {/* 코인 */}
               {tab==='coin'&&(
