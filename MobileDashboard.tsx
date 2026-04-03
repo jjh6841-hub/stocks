@@ -106,9 +106,11 @@ const ETF_DB = [
 
 // ── 인터페이스 ──────────────────────────────────────────────────────
 interface Quote { price:number; change:number; changePct:number; high52w:number; low52w:number; }
+interface InvestorEntry { code:string; name:string; amount:number; }
 interface MarketData {
   updatedAt:string; quotes:Record<string,Quote>; crypto:any[];
   forex:Record<string,number>; fearGreed:{value:number;label:string}; news:any[];
+  investorTrading?:{date:string;data:Record<string,{buy:InvestorEntry[];sell:InvestorEntry[]}>};
 }
 
 // ── 유틸 ────────────────────────────────────────────────────────────
@@ -401,8 +403,89 @@ const NewsPage: React.FC<{news:any[]}> = ({news}) => {
   );
 };
 
+// ── 👥 투자자별 순매수 TOP10 ─────────────────────────────────────────
+const INVESTOR_TYPES = ['외국인','기관','연기금','개인'] as const;
+const INVESTOR_COLORS: Record<string,string> = {
+  '외국인':'#40c4ff','기관':'#69f0ae','연기금':'#ffd740','개인':'#ff8a65',
+};
+
+const fmtBn = (n:number) => {
+  if(n>=1e12) return `${(n/1e12).toFixed(1)}조`;
+  if(n>=1e8)  return `${(n/1e8).toFixed(0)}억`;
+  return `${(n/1e4).toFixed(0)}만`;
+};
+
+const InvestorTradingMobile: React.FC<{data:MarketData['investorTrading']}> = ({data}) => {
+  const [inv,setInv]   = useState<string>('외국인');
+  const [side,setSide] = useState<'buy'|'sell'>('buy');
+  if(!data?.data) return (
+    <div style={{margin:'0 16px 14px',background:'#0d1b2e',borderRadius:'16px',padding:'20px',border:'1px solid #1a3050',textAlign:'center',color:'#37474f',fontSize:'13px'}}>
+      거래 데이터 없음 (한국 거래소 영업일 기준 최근 1일)
+    </div>
+  );
+  const list  = data.data[inv]?.[side] ?? [];
+  const maxAmt = Math.max(...list.map(x=>x.amount), 1);
+  const accentColor = INVESTOR_COLORS[inv] ?? '#40c4ff';
+  const dateLabel = data.date
+    ? `${data.date.slice(0,4)}-${data.date.slice(4,6)}-${data.date.slice(6,8)} 기준`
+    : '';
+
+  return (
+    <div style={{marginBottom:'14px'}}>
+      <SectionTitle>👥 투자자별 순매수 TOP 10</SectionTitle>
+      <div style={{padding:'0 16px'}}>
+        {/* 날짜 */}
+        {dateLabel&&<div style={{fontSize:'11px',color:'#37474f',marginBottom:'10px'}}>{dateLabel} · KOSPI 기준 · pykrx</div>}
+
+        {/* 투자자 탭 */}
+        <div style={{display:'flex',gap:'6px',marginBottom:'10px',overflowX:'auto'}}>
+          {INVESTOR_TYPES.map(t=>(
+            <button key={t} onClick={()=>setInv(t)} style={{
+              padding:'6px 14px',borderRadius:'20px',border:'none',cursor:'pointer',
+              fontSize:'13px',fontWeight:'600',flexShrink:0,
+              background: inv===t ? INVESTOR_COLORS[t] : '#1a2535',
+              color: inv===t ? '#060d1a' : '#546e7a',
+            }}>{t}</button>
+          ))}
+        </div>
+
+        {/* 매수/매도 토글 */}
+        <div style={{display:'flex',gap:'6px',marginBottom:'12px'}}>
+          {(['buy','sell'] as const).map(s=>(
+            <button key={s} onClick={()=>setSide(s)} style={{
+              flex:1,padding:'8px',borderRadius:'10px',border:'none',cursor:'pointer',
+              fontSize:'14px',fontWeight:'700',
+              background: side===s ? (s==='buy'?'rgba(0,230,118,.2)':'rgba(255,82,82,.2)') : '#1a2535',
+              color: side===s ? (s==='buy'?'#00e676':'#ff5252') : '#37474f',
+            }}>{s==='buy'?'▲ 순매수':'▼ 순매도'}</button>
+          ))}
+        </div>
+
+        {/* TOP 10 리스트 */}
+        <div style={{background:'#0d1b2e',borderRadius:'16px',padding:'14px 16px',border:'1px solid #1a3050'}}>
+          {list.length===0
+            ? <div style={{color:'#37474f',fontSize:'13px',textAlign:'center',padding:'16px'}}>데이터 없음</div>
+            : list.slice(0,10).map((item,i)=>(
+              <div key={item.code} style={{marginBottom: i<list.length-1?'12px':'0'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
+                  <span style={{fontSize:'12px',color:'#546e7a',width:'18px',textAlign:'right',fontWeight:'700',flexShrink:0}}>{i+1}</span>
+                  <span style={{flex:1,fontSize:'14px',color:'#eceff1',fontWeight:'600',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.name}</span>
+                  <span style={{fontSize:'14px',fontWeight:'700',color: side==='buy'?'#00e676':'#ff5252',flexShrink:0}}>{fmtBn(item.amount)}</span>
+                </div>
+                <div style={{marginLeft:'26px',height:'5px',background:'#1a2535',borderRadius:'3px'}}>
+                  <div style={{height:'100%',width:`${(item.amount/maxAmt)*100}%`,background:accentColor,borderRadius:'3px',opacity:0.7}}/>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ── 🧭 분석 탭 ──────────────────────────────────────────────────────
-const AnalysisPage: React.FC<{quotes:Record<string,Quote>;fg:{value:number;label:string}|null;loading:boolean}> = ({quotes,fg,loading}) => {
+const AnalysisPage: React.FC<{quotes:Record<string,Quote>;fg:{value:number;label:string}|null;loading:boolean;investorTrading?:MarketData['investorTrading']}> = ({quotes,fg,loading,investorTrading}) => {
   const fgVal=fg?.value??50;
   const sectorPerf=SECTOR_DEF.map(s=>({...s,pct:quotes[s.yf]?.changePct??0,ok:!!quotes[s.yf]})).filter(s=>s.ok).sort((a,b)=>b.pct-a.pct);
   const positions=IDX_META.map(m=>{const q=quotes[m.yf];if(!q||!q.high52w||!q.low52w||q.high52w===q.low52w)return null;return((q.price-q.low52w)/(q.high52w-q.low52w))*100;}).filter((v):v is number=>v!=null);
@@ -507,6 +590,10 @@ const AnalysisPage: React.FC<{quotes:Record<string,Quote>;fg:{value:number;label
         })}
         <div style={{height:'16px'}}/>
       </div>
+
+      {/* 투자자별 순매수 TOP 10 */}
+      <InvestorTradingMobile data={investorTrading}/>
+
     </div>
   );
 };
@@ -835,7 +922,7 @@ export default function MobileDashboard() {
           : <>
               {tab==='market'   &&<MarketPage   quotes={quotes} crypto={crypto} rawRates={rawRates} fg={fg} loading={loading}/>}
               {tab==='news'     &&<NewsPage     news={news}/>}
-              {tab==='analysis' &&<AnalysisPage quotes={quotes} fg={fg} loading={loading}/>}
+              {tab==='analysis' &&<AnalysisPage quotes={quotes} fg={fg} loading={loading} investorTrading={mdata?.investorTrading}/>}
               {tab==='calendar' &&<CalendarPage today={today}/>}
               {tab==='chart'    &&<ChartPage    quotes={quotes}/>}
             </>

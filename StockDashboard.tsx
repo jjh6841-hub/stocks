@@ -98,9 +98,11 @@ function getMarketStatus() {
 }
 
 interface Quote { price:number; change:number; changePct:number; high52w:number; low52w:number; name?:string; }
+interface InvestorEntry { code:string; name:string; amount:number; }
 interface MarketData {
   updatedAt:string; quotes:Record<string,Quote>; crypto:any[];
   forex:Record<string,number>; fearGreed:{value:number;label:string}; news:any[];
+  investorTrading?:{date:string;data:Record<string,{buy:InvestorEntry[];sell:InvestorEntry[]}>};
 }
 
 const Spinner = ({s=14}:{s?:number}) => (
@@ -502,6 +504,78 @@ const TVChart: React.FC<{sym:string;h?:number}> = ({sym,h=420}) => {
   return <div ref={ref} style={{width:'100%',height:h}}/>;
 };
 
+// ── 👥 투자자별 순매수 패널 ────────────────────────────────────────────
+const INV_TYPES = ['외국인','기관','연기금','개인'] as const;
+const INV_COLORS: Record<string,string> = {
+  '외국인':'#40c4ff','기관':'#69f0ae','연기금':'#ffd740','개인':'#ff8a65',
+};
+const fmtBnD = (n:number) =>
+  n>=1e12?`${(n/1e12).toFixed(1)}조`:n>=1e8?`${(n/1e8).toFixed(0)}억`:`${(n/1e4).toFixed(0)}만`;
+
+const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({data}) => {
+  const [inv,setInv]   = useState<string>('외국인');
+  const [side,setSide] = useState<'buy'|'sell'>('buy');
+  if(!data?.data) return null;
+  const list = data.data[inv]?.[side] ?? [];
+  const maxAmt = Math.max(...list.map(x=>x.amount), 1);
+  const accentColor = INV_COLORS[inv] ?? '#40c4ff';
+  const dateLabel = data.date
+    ? `${data.date.slice(0,4)}-${data.date.slice(4,6)}-${data.date.slice(6,8)} 기준 · KOSPI · pykrx`
+    : '';
+
+  return (
+    <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'16px',marginBottom:'14px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',flexWrap:'wrap',gap:'8px'}}>
+        <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff'}}>
+          👥 투자자별 순매수 TOP 10 <span style={{fontSize:'11px',color:'#546e7a',letterSpacing:'0'}}>· {dateLabel}</span>
+        </div>
+        {/* buy/sell toggle */}
+        <div style={{display:'flex',gap:'4px'}}>
+          {(['buy','sell'] as const).map(s=>(
+            <button key={s} onClick={()=>setSide(s)} style={{
+              padding:'4px 12px',borderRadius:'6px',border:'none',cursor:'pointer',fontSize:'12px',fontWeight:'700',
+              background: side===s?(s==='buy'?'rgba(0,230,118,.2)':'rgba(255,82,82,.2)'):'#1a2535',
+              color: side===s?(s==='buy'?'#00e676':'#ff5252'):'#546e7a',
+            }}>{s==='buy'?'▲ 순매수':'▼ 순매도'}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* 투자자 탭 */}
+      <div style={{display:'flex',gap:'6px',marginBottom:'14px'}}>
+        {INV_TYPES.map(t=>(
+          <button key={t} onClick={()=>setInv(t)} style={{
+            padding:'5px 14px',borderRadius:'16px',border:'none',cursor:'pointer',fontSize:'12px',fontWeight:'600',
+            background: inv===t ? INV_COLORS[t] : '#1a2535',
+            color: inv===t ? '#060d1a' : '#546e7a',
+          }}>{t}</button>
+        ))}
+      </div>
+
+      {/* TOP 10 */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
+        {list.length===0
+          ? <div style={{gridColumn:'1/-1',color:'#37474f',fontSize:'12px',textAlign:'center',padding:'12px'}}>데이터 없음</div>
+          : list.slice(0,10).map((item,i)=>(
+            <div key={item.code} style={{padding:'7px 10px',background:'#06111f',borderRadius:'6px',border:'1px solid #1a2535'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+                  <span style={{fontSize:'11px',color:'#37474f',fontWeight:'700'}}>{i+1}</span>
+                  <span style={{fontSize:'13px',color:'#eceff1',fontWeight:'600'}}>{item.name}</span>
+                </div>
+                <span style={{fontSize:'13px',fontWeight:'700',color:side==='buy'?'#00e676':'#ff5252'}}>{fmtBnD(item.amount)}</span>
+              </div>
+              <div style={{height:'4px',background:'#1a2535',borderRadius:'2px'}}>
+                <div style={{height:'100%',width:`${(item.amount/maxAmt)*100}%`,background:accentColor,borderRadius:'2px',opacity:0.6}}/>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  );
+};
+
 // ════════════════════════════════════════════════
 // MAIN
 // ════════════════════════════════════════════════
@@ -771,6 +845,9 @@ export default function StockDashboard() {
         <div style={{marginBottom:'14px'}}>
           <MarketAnalysis quotes={quotes} fg={fg} loading={loading}/>
         </div>
+
+        {/* 투자자별 순매수 TOP 10 */}
+        <InvestorTradingPanel data={mdata?.investorTrading}/>
 
         {/* 섹터 */}
         <div style={{marginBottom:'14px'}}>

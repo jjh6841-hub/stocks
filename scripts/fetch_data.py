@@ -4,12 +4,17 @@ GitHub Actions에서 10분마다 실행 → public/market-data.json 저장
 CORS 없이 서버에서 직접 Yahoo Finance·CoinGecko 등 호출
 """
 import json, os, sys, time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import requests
 import yfinance as yf
 import feedparser
 from deep_translator import GoogleTranslator
+try:
+    from pykrx import stock as pkstock
+    _HAS_PYKRX = True
+except ImportError:
+    _HAS_PYKRX = False
 
 OUT = os.path.join(os.path.dirname(__file__), '..', 'public', 'market-data.json')
 
@@ -185,14 +190,61 @@ def fetch_rss(url, source, n=7):
     return items
 
 
+def fetch_investor_trading():
+    if not _HAS_PYKRX:
+        print("pykrx not available", file=sys.stderr)
+        return {}
+    # Find last weekday (skip weekends)
+    today = datetime.now(timezone.utc)
+    date_str = None
+    for delta in range(1, 8):
+        dt = today - timedelta(days=delta)
+        if dt.weekday() < 5:
+            date_str = dt.strftime('%Y%m%d')
+            break
+    if not date_str:
+        return {}
+    print(f"  투자자 거래 대상일: {date_str}", file=sys.stderr)
+    result = {}
+    investor_map = {
+        '외국인': '외국인합계',
+        '기관': '기관합계',
+        '연기금': '연기금등',
+        '개인': '개인',
+    }
+    for label, inv_key in investor_map.items():
+        try:
+            df = pkstock.get_market_net_purchases_of_equities_by_ticker(
+                date_str, date_str, 'KOSPI', inv_key)
+            if df is None or df.empty:
+                continue
+            buy_top  = df.nlargest(10, '순매수거래대금')
+            sell_top = df.nsmallest(10, '순매수거래대금')
+            result[label] = {
+                'buy':  [{'code': str(idx), 'name': row['종목명'],
+                           'amount': int(row['순매수거래대금'])}
+                          for idx, row in buy_top.iterrows()
+                          if row['순매수거래대금'] > 0],
+                'sell': [{'code': str(idx), 'name': row['종목명'],
+                           'amount': abs(int(row['순매수거래대금']))}
+                          for idx, row in sell_top.iterrows()
+                          if row['순매수거래대금'] < 0],
+            }
+            print(f"  ✓ 투자자 {label}: buy={len(result[label]['buy'])}, sell={len(result[label]['sell'])}", file=sys.stderr)
+        except Exception as e:
+            print(f"  ✗ 투자자 {label}: {e}", file=sys.stderr)
+    return {'date': date_str, 'data': result}
+
+
 def main():
     print(f"\n{'='*50}", file=sys.stderr)
     print(f"Market data fetch: {datetime.now().isoformat()}", file=sys.stderr)
 
-    quotes = fetch_quotes()
-    crypto = fetch_crypto()
-    forex  = fetch_forex()
-    fg     = fetch_fear_greed()
+    quotes   = fetch_quotes()
+    crypto   = fetch_crypto()
+    forex    = fetch_forex()
+    fg       = fetch_fear_greed()
+    investor = fetch_investor_trading()
 
     news = []
     for url, src in [
@@ -211,12 +263,13 @@ def main():
             seen.add(n['id']); uniq.append(n)
 
     data = {
-        'updatedAt': datetime.now(timezone.utc).isoformat(),
-        'quotes':    quotes,
-        'crypto':    crypto,
-        'forex':     forex,
-        'fearGreed': fg,
-        'news':      uniq[:30],
+        'updatedAt':      datetime.now(timezone.utc).isoformat(),
+        'quotes':         quotes,
+        'crypto':         crypto,
+        'forex':          forex,
+        'fearGreed':      fg,
+        'news':           uniq[:30],
+        'investorTrading': investor,
     }
 
     os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
