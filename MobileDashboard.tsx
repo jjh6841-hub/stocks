@@ -419,8 +419,9 @@ const InvestorTradingMobile: React.FC<{data:MarketData['investorTrading']}> = ({
   const [inv,setInv]   = useState<string>('외국인');
   const [side,setSide] = useState<'buy'|'sell'>('buy');
   if(!data?.data) return (
-    <div style={{margin:'0 16px 14px',background:'#0d1b2e',borderRadius:'16px',padding:'20px',border:'1px solid #1a3050',textAlign:'center',color:'#37474f',fontSize:'13px'}}>
-      거래 데이터 없음 (한국 거래소 영업일 기준 최근 1일)
+    <div style={{margin:'0 16px 14px',background:'#0d1b2e',borderRadius:'16px',padding:'20px',border:'1px solid #1a3050',textAlign:'center',color:'#37474f',fontSize:'13px',lineHeight:'1.6'}}>
+      👥 투자자별 순매수/순매도<br/>
+      <span style={{fontSize:'12px'}}>GitHub Actions 다음 실행 후 표시됩니다<br/>(KOSPI · pykrx · 전일 종가 기준)</span>
     </div>
   );
   const list  = data.data[inv]?.[side] ?? [];

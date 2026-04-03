@@ -192,48 +192,66 @@ def fetch_rss(url, source, n=7):
 
 def fetch_investor_trading():
     if not _HAS_PYKRX:
-        print("pykrx not available", file=sys.stderr)
+        print("pykrx not available — skipping investor trading", file=sys.stderr)
         return {}
-    # Find last weekday (skip weekends)
-    today = datetime.now(timezone.utc)
-    date_str = None
-    for delta in range(1, 8):
-        dt = today - timedelta(days=delta)
-        if dt.weekday() < 5:
-            date_str = dt.strftime('%Y%m%d')
+
+    # Use KST (UTC+9) to determine the last trading day
+    kst_now = datetime.now(timezone.utc) + timedelta(hours=9)
+
+    # Build a list of up to 5 recent weekdays to try
+    candidate_dates = []
+    for delta in range(1, 10):
+        dt = kst_now - timedelta(days=delta)
+        if dt.weekday() < 5:          # Mon(0)–Fri(4) only
+            candidate_dates.append(dt.strftime('%Y%m%d'))
+        if len(candidate_dates) >= 5:
             break
-    if not date_str:
-        return {}
-    print(f"  투자자 거래 대상일: {date_str}", file=sys.stderr)
-    result = {}
+
+    # pykrx investor keys (exact strings the KRX API accepts)
     investor_map = {
-        '외국인': '외국인합계',
-        '기관': '기관합계',
+        '외국인': '외국인',
+        '기관':   '기관합계',
         '연기금': '연기금등',
-        '개인': '개인',
+        '개인':   '개인',
     }
-    for label, inv_key in investor_map.items():
-        try:
-            df = pkstock.get_market_net_purchases_of_equities_by_ticker(
-                date_str, date_str, 'KOSPI', inv_key)
-            if df is None or df.empty:
-                continue
-            buy_top  = df.nlargest(10, '순매수거래대금')
-            sell_top = df.nsmallest(10, '순매수거래대금')
-            result[label] = {
-                'buy':  [{'code': str(idx), 'name': row['종목명'],
-                           'amount': int(row['순매수거래대금'])}
-                          for idx, row in buy_top.iterrows()
-                          if row['순매수거래대금'] > 0],
-                'sell': [{'code': str(idx), 'name': row['종목명'],
-                           'amount': abs(int(row['순매수거래대금']))}
-                          for idx, row in sell_top.iterrows()
-                          if row['순매수거래대금'] < 0],
-            }
-            print(f"  ✓ 투자자 {label}: buy={len(result[label]['buy'])}, sell={len(result[label]['sell'])}", file=sys.stderr)
-        except Exception as e:
-            print(f"  ✗ 투자자 {label}: {e}", file=sys.stderr)
-    return {'date': date_str, 'data': result}
+
+    for date_str in candidate_dates:
+        print(f"  투자자 거래 시도: {date_str}", file=sys.stderr)
+        result = {}
+        for label, inv_key in investor_map.items():
+            try:
+                df = pkstock.get_market_net_purchases_of_equities_by_ticker(
+                    date_str, date_str, 'KOSPI', inv_key)
+                if df is None or df.empty:
+                    print(f"    {label}: empty DataFrame", file=sys.stderr)
+                    continue
+                # Find column names robustly (encoding-safe)
+                col_amt  = next((c for c in df.columns if '순매수거래대금' in c), None)
+                col_name = next((c for c in df.columns if '종목명' in c), None)
+                if col_amt is None or col_name is None:
+                    print(f"    {label}: 컬럼 없음 {list(df.columns)}", file=sys.stderr)
+                    continue
+                buy_top  = df.nlargest(10, col_amt)
+                sell_top = df.nsmallest(10, col_amt)
+                result[label] = {
+                    'buy':  [{'code': str(idx), 'name': str(row[col_name]),
+                               'amount': int(row[col_amt])}
+                              for idx, row in buy_top.iterrows()
+                              if row[col_amt] > 0],
+                    'sell': [{'code': str(idx), 'name': str(row[col_name]),
+                               'amount': abs(int(row[col_amt]))}
+                              for idx, row in sell_top.iterrows()
+                              if row[col_amt] < 0],
+                }
+                print(f"    ✓ {label}: buy={len(result[label]['buy'])}, sell={len(result[label]['sell'])}", file=sys.stderr)
+            except Exception as e:
+                print(f"    ✗ {label}: {e}", file=sys.stderr)
+
+        if result:          # At least one investor type succeeded → use this date
+            return {'date': date_str, 'data': result}
+
+    print("  투자자 거래: 모든 후보일 실패", file=sys.stderr)
+    return {}
 
 
 def main():
@@ -263,12 +281,12 @@ def main():
             seen.add(n['id']); uniq.append(n)
 
     data = {
-        'updatedAt':      datetime.now(timezone.utc).isoformat(),
-        'quotes':         quotes,
-        'crypto':         crypto,
-        'forex':          forex,
-        'fearGreed':      fg,
-        'news':           uniq[:30],
+        'updatedAt':       datetime.now(timezone.utc).isoformat(),
+        'quotes':          quotes,
+        'crypto':          crypto,
+        'forex':           forex,
+        'fearGreed':       fg,
+        'news':            uniq[:30],
         'investorTrading': investor,
     }
 

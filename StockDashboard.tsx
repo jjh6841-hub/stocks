@@ -515,7 +515,11 @@ const fmtBnD = (n:number) =>
 const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({data}) => {
   const [inv,setInv]   = useState<string>('외국인');
   const [side,setSide] = useState<'buy'|'sell'>('buy');
-  if(!data?.data) return null;
+  if(!data?.data) return (
+    <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'16px',marginBottom:'14px',color:'#37474f',fontSize:'12px',textAlign:'center'}}>
+      👥 투자자별 순매수 — GitHub Actions 다음 실행 후 표시됩니다 (KOSPI · pykrx)
+    </div>
+  );
   const list = data.data[inv]?.[side] ?? [];
   const maxAmt = Math.max(...list.map(x=>x.amount), 1);
   const accentColor = INV_COLORS[inv] ?? '#40c4ff';
