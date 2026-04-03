@@ -579,12 +579,10 @@ const CalendarPage: React.FC<{today:string}> = ({today}) => {
       {/* 캘린더 그리드 */}
       <div style={{margin:'0 16px 16px',background:'#0d1b2e',borderRadius:'16px',padding:'16px',border:'1px solid #1a3050'}}>
         {/* 네비게이션 */}
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'14px'}}>
-          <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
-            <button onClick={prev} style={{background:'#1a2535',border:'none',color:'#90a4ae',cursor:'pointer',width:'36px',height:'36px',borderRadius:'50%',fontSize:'20px',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
-            <span style={{fontSize:'18px',fontWeight:'700',color:'#eceff1',padding:'0 6px'}}>{yr}년 {MONTHS_KO[mo]}</span>
-            <button onClick={next} style={{background:'#1a2535',border:'none',color:'#90a4ae',cursor:'pointer',width:'36px',height:'36px',borderRadius:'50%',fontSize:'20px',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
-          </div>
+        <div style={{display:'flex',alignItems:'center',gap:'6px',marginBottom:'14px'}}>
+          <button onClick={prev} style={{background:'#1a2535',border:'none',color:'#90a4ae',cursor:'pointer',width:'36px',height:'36px',borderRadius:'50%',fontSize:'20px',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+          <span style={{fontSize:'18px',fontWeight:'700',color:'#eceff1',padding:'0 4px'}}>{yr}년 {MONTHS_KO[mo]}</span>
+          <button onClick={next} style={{background:'#1a2535',border:'none',color:'#90a4ae',cursor:'pointer',width:'36px',height:'36px',borderRadius:'50%',fontSize:'20px',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
           <button onClick={goT} style={{background:'#1a2535',border:'1px solid #40c4ff44',color:'#40c4ff',cursor:'pointer',padding:'7px 14px',borderRadius:'8px',fontSize:'13px',fontWeight:'600'}}>오늘</button>
         </div>
         {/* 요일 헤더 */}
