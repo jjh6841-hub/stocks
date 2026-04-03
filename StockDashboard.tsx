@@ -591,7 +591,7 @@ export default function StockDashboard() {
   const [sparks,setSparks]= useState<Record<string,number[]>>({});
   const [loading,setLoad] = useState(true);
   const [stale,setStale]  = useState(false);
-  const [tab,setTab]      = useState<'news'|'cal'|'chart'>('news');
+  const [tab,setTab]      = useState<'news'|'cal'|'chart'|'coin'|'forex'|'com'>('news');
   const [nf,setNF]        = useState('all');
   const [chartSym,setCS]  = useState('NASDAQ:NVDA');
   const [alerts,setAlerts]= useState<{id:number;text:string;type:string}[]>([]);
@@ -664,7 +664,7 @@ export default function StockDashboard() {
     ['KRX:005930','삼성전자'],['KRX:000660','SK하이닉스'],['BINANCE:BTCUSDT','비트코인'],
     ['TVC:GOLD','금'],['TVC:USOIL','WTI원유'],['INDEX:SPX','S&P500']];
 
-  const tabS=(k:typeof tab):React.CSSProperties=>({padding:'8px 14px',border:'none',cursor:'pointer',fontSize:'14px',fontFamily:'inherit',borderBottom:tab===k?'2px solid #40c4ff':'2px solid transparent',background:'transparent',color:tab===k?'#40c4ff':'#546e7a',fontWeight:tab===k?'bold':'normal'});
+  const tabS=(k:typeof tab):React.CSSProperties=>({padding:'6px 10px',border:'none',cursor:'pointer',fontSize:'12px',fontFamily:'inherit',borderBottom:tab===k?'2px solid #40c4ff':'2px solid transparent',background:'transparent',color:tab===k?'#40c4ff':'#546e7a',fontWeight:tab===k?'bold':'normal',whiteSpace:'nowrap' as const});
   const fBtnS=(k:string):React.CSSProperties=>({padding:'3px 10px',borderRadius:'4px',border:`1px solid ${nf===k?'#40c4ff':'#1a2535'}`,background:nf===k?'#40c4ff22':'transparent',color:nf===k?'#40c4ff':'#546e7a',cursor:'pointer',fontSize:'13px',fontFamily:'inherit'});
 
   return (
@@ -729,190 +729,204 @@ export default function StockDashboard() {
         </div>
       )}
 
-      <div style={{padding:'14px 16px',maxWidth:'1900px',margin:'0 auto'}}>
+      <div style={{padding:'12px 16px',maxWidth:'1900px',margin:'0 auto'}}>
 
         {loading&&(
-          <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'30px',textAlign:'center',marginBottom:'14px'}}>
+          <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'30px',textAlign:'center',marginBottom:'12px'}}>
             <Spinner s={28}/><br/><br/>
             <div style={{color:'#90a4ae',fontSize:'15px'}}>데이터 로딩 중...</div>
-            <div style={{color:'#546e7a',fontSize:'13px',marginTop:'8px'}}>GitHub Actions가 10분마다 최신 시장 데이터를 수집합니다.</div>
           </div>
         )}
 
-        {/* 주요 지수 */}
-        <div style={{marginBottom:'14px'}}>
-          <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'10px'}}>
-            📊 주요 지수 <span style={{fontSize:'11px',color:'#546e7a',letterSpacing:'0'}}>· yfinance 실제 데이터 (10분 갱신)</span>
+        {/* ── 주요 지수 (compact 8-col 카드) ─────────────────────────── */}
+        <div style={{marginBottom:'12px'}}>
+          <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>
+            📊 주요 지수 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 10분 갱신</span>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'10px'}}>
-            {IDX_META.map(m=><IdxCard key={m.yf} meta={m} q={quotes[m.yf]} spark={sparks[m.yf]??[]} loading={loading}/>)}
-          </div>
-        </div>
-
-        {/* 사이드바 + 탭 */}
-        <div style={{display:'grid',gridTemplateColumns:'230px 1fr',gap:'14px',marginBottom:'14px'}}>
-          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-            <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'12px',textAlign:'center'}}>
-              <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>🧠 공포&탐욕 지수</div>
-              <FGGauge data={fg}/>
-            </div>
-            <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'12px'}}>
-              <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'10px'}}>📏 52주 위치 & 기회구간</div>
-              {IDX_META.slice(0,4).map(m=>{
-                const q=quotes[m.yf];
-                if(!q||!q.high52w) return (
-                  <div key={m.sym} style={{marginBottom:'10px'}}>
-                    <div style={{fontSize:'12px',color:'#90a4ae',marginBottom:'3px'}}>{m.name}</div>
-                    <div style={{height:'6px',background:'#1a2535',borderRadius:'3px'}}/>
-                  </div>
-                );
-                const p=((q.price-q.low52w)/(q.high52w-q.low52w))*100;
-                const fromATH=((m.ath-q.price)/m.ath*100);
-                const zone=p<20?'🟢 기회구간':p>80?'🔴 고점권':p>60?'🟡 주의':'🔵 중간';
-                return (
-                  <div key={m.sym} style={{marginBottom:'10px'}}>
-                    <div style={{display:'flex',justifyContent:'space-between',fontSize:'12px',marginBottom:'3px'}}>
-                      <span style={{color:'#90a4ae'}}>{m.name}</span>
-                      <span style={{fontSize:'11px',color:'#546e7a'}}>ATH -{fromATH.toFixed(1)}%</span>
-                    </div>
-                    <div style={{position:'relative',height:'6px',background:'#1a2535',borderRadius:'3px',marginBottom:'3px'}}>
-                      <div style={{position:'absolute',left:0,top:0,height:'100%',width:`${Math.min(100,Math.max(0,p))}%`,background:p<20?'#00e676':p>80?'#ff5252':'#40c4ff',borderRadius:'3px',transition:'width .5s'}}/>
-                    </div>
-                    <div style={{fontSize:'11px',color:p<20?'#00e676':p>80?'#ff5252':'#546e7a'}}>{zone}</div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <div style={{display:'flex',borderBottom:'1px solid #1a2535',marginBottom:'12px'}}>
-              <button style={tabS('news')} onClick={()=>setTab('news')}>📰 실시간 뉴스</button>
-              <button style={tabS('cal')}  onClick={()=>setTab('cal')}>📅 경제 캘린더</button>
-              <button style={tabS('chart')}onClick={()=>setTab('chart')}>📈 TradingView 차트</button>
-            </div>
-
-            {tab==='news'&&(
-              <div>
-                <div style={{display:'flex',gap:'6px',marginBottom:'10px',flexWrap:'wrap',alignItems:'center'}}>
-                  {[['all','전체'],['trump','🎭 트럼프'],['macro','🌐 매크로'],['tech','💻 테크'],['crypto','₿ 코인'],['korea','🇰🇷 한국'],['energy','⛽ 에너지'],['earnings','📊 실적']].map(([k,l])=>(
-                    <button key={k} style={fBtnS(k)} onClick={()=>setNF(k)}>{l}</button>
-                  ))}
-                  <span style={{marginLeft:'auto',fontSize:'11px',color:news.length?'#00e676':'#546e7a'}}>
-                    {news.length?`● ${news.length}건 수집됨`:'뉴스 로딩 중...'}
-                  </span>
-                </div>
-                <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'12px',maxHeight:'420px',overflowY:'auto'}}>
-                  {filteredNews.length===0&&<div style={{textAlign:'center',color:'#37474f',padding:'40px',fontSize:'14px'}}>뉴스 없음</div>}
-                  {filteredNews.map((item:any)=>{
-                    const SC={positive:'#00e676',negative:'#ff5252',neutral:'#ffd740'} as const;
-                    const SI={positive:'↑ 호재',negative:'↓ 악재',neutral:'→ 중립'} as const;
-                    return (
-                      <div key={item.id} style={{borderBottom:'1px solid #1a2535',marginBottom:'10px',padding:'6px',background:item.isTrump?'rgba(255,82,82,.03)':'transparent',borderRadius:'4px'}}>
-                        <div style={{display:'flex',gap:'6px',alignItems:'center',marginBottom:'5px',flexWrap:'wrap'}}>
-                          {item.isTrump&&<span style={{fontSize:'11px',background:'rgba(255,82,82,.2)',color:'#ff8a80',padding:'1px 5px',borderRadius:'3px',border:'1px solid rgba(255,82,82,.3)'}}>🎭 트럼프</span>}
-                          <span style={{fontSize:'11px',color:SC[item.sentiment as keyof typeof SC],background:SC[item.sentiment as keyof typeof SC]+'22',padding:'1px 5px',borderRadius:'3px'}}>{SI[item.sentiment as keyof typeof SI]}</span>
-                          <span style={{fontSize:'11px',color:'#37474f',marginLeft:'auto'}}>{item.source} · {item.time}</span>
-                        </div>
-                        <a href={item.url} target="_blank" rel="noreferrer" style={{textDecoration:'none'}}>
-                          <div style={{fontSize:'14px',color:'#cfd8dc',lineHeight:'1.5',cursor:'pointer'}}
-                            onMouseEnter={e=>((e.currentTarget as HTMLElement).style.color='#40c4ff')}
-                            onMouseLeave={e=>((e.currentTarget as HTMLElement).style.color='#cfd8dc')}>
-                            {highlight(item.title)}
-                          </div>
-                        </a>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {tab==='cal'&&<GoogleCalendar events={CALENDAR} today={today}/>}
-
-            {tab==='chart'&&(
-              <div>
-                <div style={{display:'flex',gap:'6px',marginBottom:'10px',flexWrap:'wrap'}}>
-                  {CHARTS.map(([s,n])=>(
-                    <button key={s} onClick={()=>setCS(s)} style={{padding:'4px 10px',borderRadius:'4px',border:`1px solid ${chartSym===s?'#40c4ff':'#1a2535'}`,background:chartSym===s?'#40c4ff22':'transparent',color:chartSym===s?'#40c4ff':'#546e7a',cursor:'pointer',fontSize:'13px',fontFamily:'inherit'}}>{n}</button>
-                  ))}
-                </div>
-                <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',overflow:'hidden'}}>
-                  <TVChart sym={chartSym}/>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 시장 분석 & ETF 추천 */}
-        <div style={{marginBottom:'14px'}}>
-          <MarketAnalysis quotes={quotes} fg={fg} loading={loading}/>
-        </div>
-
-        {/* 투자자별 순매수 TOP 10 */}
-        <InvestorTradingPanel data={mdata?.investorTrading}/>
-
-        {/* 섹터 */}
-        <div style={{marginBottom:'14px'}}>
-          <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'10px'}}>🔥 섹터 ETF & 종목 <span style={{fontSize:'11px',color:'#546e7a',letterSpacing:'0'}}>· yfinance 실제 등락률</span></div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'10px'}}>
-            {SECTOR_DEF.map(d=><SectorCard key={d.yf} def={d} quotes={quotes} loading={loading}/>)}
-          </div>
-        </div>
-
-        {/* 암호화폐 + 환율 + 원자재 */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'14px',marginBottom:'14px'}}>
-          <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'12px'}}>
-            <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'12px'}}>₿ 암호화폐 <span style={{fontSize:'11px',color:'#00e676',letterSpacing:'0'}}>● CoinGecko 실시간</span></div>
-            {crypto.length===0&&<div style={{display:'flex',justifyContent:'center',padding:'20px'}}><Spinner s={20}/></div>}
-            {crypto.map((c:any)=>(
-              <div key={c.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #1a2535'}}>
-                <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                  <div style={{width:'30px',height:'30px',borderRadius:'50%',background:'#1a2535',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'12px',color:'#ffd740',fontWeight:'bold'}}>{c.symbol.toUpperCase().slice(0,2)}</div>
-                  <div><div style={{fontSize:'14px',color:'#eceff1',fontWeight:'bold'}}>{c.name}</div><div style={{fontSize:'12px',color:'#37474f'}}>{fmtCap(c.market_cap)}</div></div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{fontSize:'15px',color:'#f1f5f9',fontWeight:'bold'}}>${c.current_price.toLocaleString()}</div>
-                  <div style={{fontSize:'13px',color:clr(c.price_change_percentage_24h),fontWeight:'bold'}}>{c.price_change_percentage_24h>=0?'▲':'▼'} {Math.abs(c.price_change_percentage_24h).toFixed(2)}%</div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'12px'}}>
-            <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'12px'}}>💱 환율 <span style={{fontSize:'11px',color:'#00e676',letterSpacing:'0'}}>● Open ER API 실시간</span></div>
-            {usdKrw===0&&<div style={{display:'flex',justifyContent:'center',padding:'20px'}}><Spinner s={20}/></div>}
-            {usdKrw>0&&forexList.map(fx=>(
-              <div key={fx.pair} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'9px 0',borderBottom:'1px solid #1a2535'}}>
-                <div><div style={{fontSize:'14px',color:'#eceff1'}}>{fx.flag} {fx.pair}</div><div style={{fontSize:'12px',color:'#37474f'}}>{fx.label}</div></div>
-                <div style={{fontSize:'17px',fontWeight:'bold',color:'#f1f5f9'}}>₩{fmt(fx.r,1)}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'12px'}}>
-            <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'12px'}}>🪙 원자재 선물 <span style={{fontSize:'11px',color:'#00e676',letterSpacing:'0'}}>● yfinance 실시간</span></div>
-            {COM_META.map(m=>{
-              const q=quotes[m.yf];
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'7px'}}>
+            {IDX_META.map(m=>{
+              const q=quotes[m.yf]; const c=clr(q?.changePct??0);
+              const p52=q&&q.high52w&&q.low52w&&q.high52w!==q.low52w
+                ?((q.price-q.low52w)/(q.high52w-q.low52w))*100:null;
+              const fromATH=q?((m.ath-q.price)/m.ath*100):null;
               return (
-                <div key={m.sym} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #1a2535'}}>
-                  <div><div style={{fontSize:'14px',color:'#eceff1',fontWeight:'bold'}}>{m.icon} {m.name}</div><div style={{fontSize:'11px',color:'#37474f'}}>{m.unit}</div></div>
-                  <div style={{textAlign:'right'}}>
-                    {loading||!q?<Spinner/>:<>
-                      <div style={{fontSize:'15px',color:'#f1f5f9',fontWeight:'bold'}}>${fmt(q.price,['NG=F','HG=F'].includes(m.yf)?3:2)}</div>
-                      <div style={{fontSize:'13px',color:clr(q.changePct),fontWeight:'bold'}}>{q.changePct>=0?'▲':'▼'} {Math.abs(q.changePct).toFixed(2)}%</div>
-                    </>}
+                <div key={m.yf} style={{background:'#0d1b2e',border:'1px solid #1a3050',borderLeft:`3px solid ${c}`,borderRadius:'6px',padding:'8px 10px'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}}>
+                    <span style={{fontSize:'11px',color:'#546e7a',fontWeight:'600',letterSpacing:'1px'}}>{m.sym}</span>
+                    {loading||!q?<Spinner s={12}/>:
+                      <span style={{fontSize:'12px',fontWeight:'700',color:c}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</span>}
                   </div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
+                    <span style={{fontSize:'17px',fontWeight:'700',color:'#eceff1'}}>{loading||!q?'—':fmt(q.price)}</span>
+                    {fromATH!=null&&<span style={{fontSize:'10px',color:'#37474f'}}>ATH -{fromATH.toFixed(1)}%</span>}
+                  </div>
+                  {p52!=null&&(
+                    <div style={{height:'3px',background:'#1a2535',borderRadius:'2px'}}>
+                      <div style={{height:'100%',width:`${Math.min(100,p52)}%`,background:p52<20?'#00e676':p52>80?'#ff5252':'#40c4ff',borderRadius:'2px'}}/>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div style={{borderTop:'1px solid #1a2535',paddingTop:'10px',display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#37474f',flexWrap:'wrap',gap:'6px'}}>
+        {/* ── 메인: 좌(섹터+투자자+분석) / 우(탭패널) ──────────────────── */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 420px',gap:'12px',alignItems:'start'}}>
+
+          {/* 좌열 */}
+          <div>
+            {/* 섹터 ETF */}
+            <div style={{marginBottom:'10px'}}>
+              <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>🔥 섹터 ETF & 종목 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 실제 등락률</span></div>
+              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'8px'}}>
+                {SECTOR_DEF.map(d=><SectorCard key={d.yf} def={d} quotes={quotes} loading={loading}/>)}
+              </div>
+            </div>
+
+            {/* 투자자별 순매수 */}
+            <InvestorTradingPanel data={mdata?.investorTrading}/>
+
+            {/* 시장 분석 & ETF 추천 */}
+            <MarketAnalysis quotes={quotes} fg={fg} loading={loading}/>
+          </div>
+
+          {/* 우열: 6-탭 패널 */}
+          <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',overflow:'hidden',position:'sticky',top:'58px'}}>
+            {/* 탭 바 */}
+            <div style={{display:'flex',borderBottom:'1px solid #1a2535',background:'#060d1a',overflowX:'auto'}}>
+              <button style={tabS('news')}  onClick={()=>setTab('news')}>📰 뉴스</button>
+              <button style={tabS('cal')}   onClick={()=>setTab('cal')}>📅 캘린더</button>
+              <button style={tabS('chart')} onClick={()=>setTab('chart')}>📈 차트</button>
+              <button style={tabS('coin')}  onClick={()=>setTab('coin')}>₿ 코인</button>
+              <button style={tabS('forex')} onClick={()=>setTab('forex')}>💱 환율</button>
+              <button style={tabS('com')}   onClick={()=>setTab('com')}>🪙 원자재</button>
+            </div>
+
+            <div style={{padding:'10px',maxHeight:'calc(100vh - 130px)',overflowY:'auto'}}>
+              {/* 뉴스 */}
+              {tab==='news'&&(
+                <div>
+                  <div style={{display:'flex',gap:'4px',marginBottom:'8px',flexWrap:'wrap',alignItems:'center'}}>
+                    {[['all','전체'],['trump','트럼프'],['macro','매크로'],['tech','테크'],['crypto','코인'],['korea','한국'],['energy','에너지'],['earnings','실적']].map(([k,l])=>(
+                      <button key={k} style={fBtnS(k)} onClick={()=>setNF(k)}>{l}</button>
+                    ))}
+                    <span style={{marginLeft:'auto',fontSize:'10px',color:news.length?'#00e676':'#546e7a'}}>
+                      {news.length?`● ${news.length}건`:'로딩 중...'}
+                    </span>
+                  </div>
+                  <div>
+                    {filteredNews.length===0&&<div style={{textAlign:'center',color:'#37474f',padding:'30px',fontSize:'13px'}}>뉴스 없음</div>}
+                    {filteredNews.map((item:any)=>{
+                      const SC={positive:'#00e676',negative:'#ff5252',neutral:'#ffd740'} as const;
+                      const SI={positive:'↑ 호재',negative:'↓ 악재',neutral:'→ 중립'} as const;
+                      return (
+                        <div key={item.id} style={{borderBottom:'1px solid #1a2535',marginBottom:'8px',padding:'6px',background:item.isTrump?'rgba(255,82,82,.03)':'transparent',borderRadius:'4px'}}>
+                          <div style={{display:'flex',gap:'5px',alignItems:'center',marginBottom:'4px',flexWrap:'wrap'}}>
+                            {item.isTrump&&<span style={{fontSize:'10px',background:'rgba(255,82,82,.2)',color:'#ff8a80',padding:'1px 4px',borderRadius:'3px'}}>🎭 트럼프</span>}
+                            <span style={{fontSize:'10px',color:SC[item.sentiment as keyof typeof SC],background:SC[item.sentiment as keyof typeof SC]+'22',padding:'1px 4px',borderRadius:'3px'}}>{SI[item.sentiment as keyof typeof SI]}</span>
+                            <span style={{fontSize:'10px',color:'#37474f',marginLeft:'auto'}}>{item.source} · {item.time}</span>
+                          </div>
+                          <a href={item.url} target="_blank" rel="noreferrer" style={{textDecoration:'none'}}>
+                            <div style={{fontSize:'13px',color:'#cfd8dc',lineHeight:'1.5',cursor:'pointer'}}
+                              onMouseEnter={e=>((e.currentTarget as HTMLElement).style.color='#40c4ff')}
+                              onMouseLeave={e=>((e.currentTarget as HTMLElement).style.color='#cfd8dc')}>
+                              {highlight(item.title)}
+                            </div>
+                          </a>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 캘린더 */}
+              {tab==='cal'&&<GoogleCalendar events={CALENDAR} today={today}/>}
+
+              {/* 차트 */}
+              {tab==='chart'&&(
+                <div>
+                  <div style={{display:'flex',gap:'5px',marginBottom:'8px',flexWrap:'wrap'}}>
+                    {CHARTS.map(([s,n])=>(
+                      <button key={s} onClick={()=>setCS(s)} style={{padding:'3px 8px',borderRadius:'4px',border:`1px solid ${chartSym===s?'#40c4ff':'#1a2535'}`,background:chartSym===s?'#40c4ff22':'transparent',color:chartSym===s?'#40c4ff':'#546e7a',cursor:'pointer',fontSize:'12px',fontFamily:'inherit'}}>{n}</button>
+                    ))}
+                  </div>
+                  <div style={{background:'#06111f',border:'1px solid #1a2535',borderRadius:'6px',overflow:'hidden'}}>
+                    <TVChart sym={chartSym} h={360}/>
+                  </div>
+                </div>
+              )}
+
+              {/* 코인 */}
+              {tab==='coin'&&(
+                <div>
+                  <div style={{fontSize:'10px',color:'#00e676',marginBottom:'8px'}}>● CoinGecko 실시간</div>
+                  {crypto.length===0&&<div style={{display:'flex',justifyContent:'center',padding:'20px'}}><Spinner s={20}/></div>}
+                  {crypto.map((c:any)=>(
+                    <div key={c.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 0',borderBottom:'1px solid #1a2535'}}>
+                      <div style={{width:'22px',height:'22px',borderRadius:'50%',background:'#1a2535',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'#ffd740',fontWeight:'bold',flexShrink:0}}>{c.symbol.toUpperCase().slice(0,2)}</div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:'13px',color:'#eceff1',fontWeight:'600'}}>{c.name}</div>
+                        <div style={{fontSize:'10px',color:'#37474f'}}>{fmtCap(c.market_cap)}</div>
+                      </div>
+                      <div style={{textAlign:'right',flexShrink:0}}>
+                        <div style={{fontSize:'14px',color:'#f1f5f9',fontWeight:'700'}}>${c.current_price.toLocaleString()}</div>
+                        <div style={{fontSize:'11px',color:clr(c.price_change_percentage_24h),fontWeight:'600'}}>{c.price_change_percentage_24h>=0?'▲':'▼'}{Math.abs(c.price_change_percentage_24h).toFixed(2)}%</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 환율 */}
+              {tab==='forex'&&(
+                <div>
+                  <div style={{fontSize:'10px',color:'#00e676',marginBottom:'8px'}}>● Open ER API 실시간</div>
+                  {usdKrw===0&&<div style={{display:'flex',justifyContent:'center',padding:'20px'}}><Spinner s={20}/></div>}
+                  {usdKrw>0&&forexList.map(fx=>(
+                    <div key={fx.pair} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #1a2535'}}>
+                      <div>
+                        <span style={{fontSize:'14px',color:'#eceff1'}}>{fx.flag} {fx.pair}</span>
+                        <span style={{fontSize:'11px',color:'#37474f',marginLeft:'8px'}}>{fx.label}</span>
+                      </div>
+                      <div style={{fontSize:'16px',fontWeight:'700',color:'#f1f5f9'}}>₩{fmt(fx.r,1)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 원자재 */}
+              {tab==='com'&&(
+                <div>
+                  <div style={{fontSize:'10px',color:'#00e676',marginBottom:'8px'}}>● yfinance 실시간</div>
+                  {COM_META.map(m=>{
+                    const q=quotes[m.yf];
+                    return (
+                      <div key={m.sym} style={{display:'flex',alignItems:'center',gap:'8px',padding:'7px 0',borderBottom:'1px solid #1a2535'}}>
+                        <span style={{fontSize:'17px',flexShrink:0}}>{m.icon}</span>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:'13px',color:'#eceff1',fontWeight:'600'}}>{m.name}</div>
+                          <div style={{fontSize:'10px',color:'#37474f'}}>{m.unit}</div>
+                        </div>
+                        {loading||!q?<Spinner/>:
+                          <div style={{textAlign:'right',flexShrink:0}}>
+                            <div style={{fontSize:'14px',color:'#f1f5f9',fontWeight:'700'}}>${fmt(q.price,['NG=F','HG=F'].includes(m.yf)?3:2)}</div>
+                            <div style={{fontSize:'11px',color:clr(q.changePct),fontWeight:'600'}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</div>
+                          </div>
+                        }
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div style={{borderTop:'1px solid #1a2535',marginTop:'12px',paddingTop:'10px',display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#37474f',flexWrap:'wrap',gap:'6px'}}>
           <span>⚡ GitHub Actions 10분 갱신 (public repo → Actions 무료·무제한)</span>
-          <span>📡 yfinance · CoinGecko · Open ER API · Alternative.me · RSS · deep-translator</span>
+          <span>📡 yfinance · CoinGecko · Open ER API · Alternative.me · RSS · deep-translator · pykrx</span>
           <span>⚠️ 투자 판단은 본인 책임 | © 2026 Market Terminal</span>
         </div>
       </div>
