@@ -206,10 +206,23 @@ def fetch_investor_trading():
     # KRX MDCSTAT02401: 투자자별 순매수 상위종목
     # invstTpCd 코드: 외국인합계=9000, 기관합계=9100, 연기금등=9200, 개인=1000
     KRX_URL = 'http://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd'
+    KRX_BASE = 'http://data.krx.co.kr'
+    UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+
+    # 세션 생성 + 메인 페이지 방문 (JSESSIONID 쿠키 획득)
+    sess = requests.Session()
+    sess.headers.update({'User-Agent': UA})
+    try:
+        sess.get(f'{KRX_BASE}/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020302',
+                 timeout=15)
+        print(f"  KRX 세션 쿠키: {dict(sess.cookies)}", file=sys.stderr)
+    except Exception as e:
+        print(f"  KRX 세션 오류: {e}", file=sys.stderr)
+
     KRX_HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Referer':    'http://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020302',
-        'Origin':     'http://data.krx.co.kr',
+        'User-Agent': UA,
+        'Referer':    f'{KRX_BASE}/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020302',
+        'Origin':     KRX_BASE,
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
         'X-Requested-With': 'XMLHttpRequest',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -234,8 +247,8 @@ def fetch_investor_trading():
             'money':        '1',
             'csvxls_isNo':  'false',
         }
-        r = requests.post(KRX_URL, data=payload, headers=KRX_HEADERS, timeout=20)
-        print(f"      HTTP {r.status_code} len={len(r.text)} preview={r.text[:300]}", file=sys.stderr)
+        r = sess.post(KRX_URL, data=payload, headers=KRX_HEADERS, timeout=20)
+        print(f"      HTTP {r.status_code} len={len(r.text)} preview={r.text[:200]}", file=sys.stderr)
         if not r.ok:
             return None
         items = r.json().get('output', [])
