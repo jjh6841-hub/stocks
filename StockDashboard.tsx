@@ -51,13 +51,35 @@ const CALENDAR = [
   { id:'11',date:'2026-04-30', title:'Microsoft 실적',           imp:'high', type:'earnings',     desc:'Microsoft 1Q 실적 발표',          country:'US' },
   { id:'12',date:'2026-05-01', title:'Apple 실적',               imp:'high', type:'earnings',     desc:'Apple 2Q 실적 발표',              country:'US' },
   { id:'13',date:'2026-05-02', title:'美 고용보고서 (4월)',      imp:'high', type:'economic',     desc:'4월 비농업 고용지표',             country:'US' },
+  // ── 2026 미국·한국 증시 휴장일 ────────────────────────────────────
+  { id:'hd01',date:'2026-01-01', title:'🇺🇸🇰🇷 신정 · 공동 휴장',          imp:'med', type:'holiday', desc:'뉴욕증권거래소(NYSE) · 한국거래소(KRX) 모두 휴장', country:'US' },
+  { id:'hd02',date:'2026-02-16', title:'🇰🇷 설날 연휴 · KRX 휴장',         imp:'med', type:'holiday', desc:'설날 전날 — 한국 증시 휴장', country:'KR' },
+  { id:'hd03',date:'2026-02-17', title:'🇰🇷 설날 · KRX 휴장',              imp:'med', type:'holiday', desc:'음력 1월 1일 — 한국 증시 휴장', country:'KR' },
+  { id:'hd04',date:'2026-02-18', title:'🇰🇷 설날 연휴 · KRX 휴장',         imp:'med', type:'holiday', desc:'설날 다음날 — 한국 증시 휴장', country:'KR' },
+  { id:'hd05',date:'2026-03-02', title:'🇰🇷 삼일절 대체 · KRX 휴장',       imp:'med', type:'holiday', desc:'3·1절 대체공휴일 (3/1 일요일 → 3/2 월요일)', country:'KR' },
+  { id:'hd06',date:'2026-04-03', title:'🇺🇸 굿프라이데이 · NYSE 휴장',      imp:'med', type:'holiday', desc:'Good Friday — 미국 증시 휴장', country:'US' },
+  { id:'hd07',date:'2026-05-05', title:'🇰🇷 어린이날 · KRX 휴장',          imp:'med', type:'holiday', desc:'한국 증시 휴장', country:'KR' },
+  { id:'hd08',date:'2026-05-25', title:'🇺🇸🇰🇷 공동 휴장',                 imp:'med', type:'holiday', desc:'미국 메모리얼데이 + 한국 부처님오신날 대체 (추정)', country:'US' },
+  { id:'hd09',date:'2026-06-19', title:'🇺🇸 준틴스데이 · NYSE 휴장',        imp:'med', type:'holiday', desc:'Juneteenth National Independence Day', country:'US' },
+  { id:'hd10',date:'2026-07-03', title:'🇺🇸 독립기념일 대체 · NYSE 휴장',   imp:'med', type:'holiday', desc:'7/4 토요일 → 7/3 금요일 대체 휴장', country:'US' },
+  { id:'hd11',date:'2026-08-17', title:'🇰🇷 광복절 대체 · KRX 휴장',       imp:'med', type:'holiday', desc:'8/15 토요일 → 8/17 월요일 대체', country:'KR' },
+  { id:'hd12',date:'2026-09-07', title:'🇺🇸 노동절 · NYSE 휴장',            imp:'med', type:'holiday', desc:'Labor Day — 미국 증시 휴장', country:'US' },
+  { id:'hd13',date:'2026-09-30', title:'🇰🇷 추석 연휴 · KRX 휴장',         imp:'med', type:'holiday', desc:'추석 전날 (추정)', country:'KR' },
+  { id:'hd14',date:'2026-10-01', title:'🇰🇷 추석 · KRX 휴장',              imp:'med', type:'holiday', desc:'추석 당일 (추정)', country:'KR' },
+  { id:'hd15',date:'2026-10-02', title:'🇰🇷 추석 연휴 · KRX 휴장',         imp:'med', type:'holiday', desc:'추석 다음날 (추정)', country:'KR' },
+  { id:'hd16',date:'2026-10-05', title:'🇰🇷 개천절 대체 · KRX 휴장',       imp:'med', type:'holiday', desc:'10/3 토요일 → 10/5 월요일 대체 (추정)', country:'KR' },
+  { id:'hd17',date:'2026-10-09', title:'🇰🇷 한글날 · KRX 휴장',             imp:'med', type:'holiday', desc:'한국 증시 휴장', country:'KR' },
+  { id:'hd18',date:'2026-11-26', title:'🇺🇸 추수감사절 · NYSE 휴장',        imp:'med', type:'holiday', desc:'Thanksgiving Day — 미국 증시 휴장', country:'US' },
+  { id:'hd19',date:'2026-12-25', title:'🇺🇸🇰🇷 크리스마스 · 공동 휴장',     imp:'med', type:'holiday', desc:'NYSE · KRX 모두 휴장', country:'US' },
+  { id:'hd20',date:'2026-12-31', title:'🇰🇷 KRX 연말 휴장',                imp:'med', type:'holiday', desc:'한국 증시 연말 휴장', country:'KR' },
 ];
 
 const EVT_COLOR: Record<string,string> = {
   fed:'#ffd740', earnings:'#40c4ff', economic:'#00e676', options:'#ff9100', geopolitical:'#ff5252',
+  holiday:'#4db6ac',
 };
 const EVT_LABEL: Record<string,string> = {
-  fed:'Fed', earnings:'실적', economic:'경제지표', options:'옵션', geopolitical:'지정학',
+  fed:'Fed', earnings:'실적', economic:'경제지표', options:'옵션', geopolitical:'지정학', holiday:'휴장일',
 };
 
 const ETF_DB = [
