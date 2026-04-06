@@ -235,8 +235,8 @@ def fetch_investor_trading():
             'csvxls_isNo':  'false',
         }
         r = requests.post(KRX_URL, data=payload, headers=KRX_HEADERS, timeout=20)
+        print(f"      HTTP {r.status_code} len={len(r.text)} preview={r.text[:300]}", file=sys.stderr)
         if not r.ok:
-            print(f"      HTTP {r.status_code}", file=sys.stderr)
             return None
         items = r.json().get('output', [])
         if not items:
