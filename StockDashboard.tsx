@@ -90,12 +90,12 @@ const ETF_DB = [
   { sym:'ITA',  name:'방위산업 ETF', tag:'방어', color:'#ffd740', desc:'지정학 리스크 헤지',      fgRange:[0,60] },
   { sym:'IBB',  name:'바이오 ETF',   tag:'테마', color:'#a5d6a7', desc:'신약·고령화 테마',        fgRange:[30,70] },
   { sym:'GLD',  name:'금 ETF',       tag:'헤지', color:'#ffe082', desc:'인플레·불확실성 헤지',    fgRange:[0,45] },
-  { sym:'TLT',  name:'장기국채 ETF', tag:'채권', color:'#90a4ae', desc:'금리 하락 기대 포지션',   fgRange:[0,40] },
+  { sym:'TLT',  name:'장기국채 ETF', tag:'채권', color:'#b0c4cc', desc:'금리 하락 기대 포지션',   fgRange:[0,40] },
 ];
 
 const fmt = (n:number, d=2) => isNaN(n)||n===0 ? '—' : n.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d});
 const fmtCap = (n:number) => n>=1e12?`$${(n/1e12).toFixed(2)}T`:n>=1e9?`$${(n/1e9).toFixed(1)}B`:`$${(n/1e6).toFixed(0)}M`;
-const clr = (v:number) => v>0?'#00e676':v<0?'#ff5252':'#90a4ae';
+const clr = (v:number) => v>0?'#00e676':v<0?'#ff5252':'#b0c4cc';
 const bg  = (v:number) => v>0?'rgba(0,230,118,.12)':v<0?'rgba(255,82,82,.12)':'rgba(144,164,174,.1)';
 
 function highlight(text:string) {
@@ -153,7 +153,7 @@ const FGGauge: React.FC<{data:{value:number;label:string}|null}> = ({data}) => {
         <text x={cx} y={cy-14} textAnchor="middle" fill={zone.c} fontSize="18" fontWeight="bold">{v}</text>
       </svg>
       <div style={{color:zone.c,fontWeight:'bold',fontSize:'14px',marginTop:'-2px'}}>{LABEL[data.label]??data.label}</div>
-      <div style={{color:'#546e7a',fontSize:'12px'}}>Alternative.me 공포&탐욕</div>
+      <div style={{color:'#8ea5b0',fontSize:'12px'}}>Alternative.me 공포&탐욕</div>
     </div>
   );
 };
@@ -174,26 +174,26 @@ const IdxCard: React.FC<{meta:typeof IDX_META[0];q:Quote|undefined;spark:number[
     <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderLeft:`3px solid ${c}`,borderRadius:'8px',padding:'12px'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'6px'}}>
         <div>
-          <div style={{fontSize:'12px',color:'#546e7a',letterSpacing:'1px'}}>{meta.sym}</div>
-          <div style={{fontSize:'14px',color:'#90a4ae'}}>{meta.name}</div>
+          <div style={{fontSize:'12px',color:'#8ea5b0',letterSpacing:'1px'}}>{meta.sym}</div>
+          <div style={{fontSize:'14px',color:'#b0c4cc'}}>{meta.name}</div>
         </div>
         {spark.length>1&&<Sparkline data={spark} pos={pos}/>}
       </div>
       {loading?<div style={{padding:'10px'}}><Spinner s={20}/></div>:!q?
-        <div style={{fontSize:'13px',color:'#546e7a',padding:'10px'}}>데이터 없음</div>:
+        <div style={{fontSize:'13px',color:'#8ea5b0',padding:'10px'}}>데이터 없음</div>:
         <>
           <div style={{fontSize:'22px',fontWeight:'bold',color:'#eceff1',marginBottom:'4px'}}>{fmt(q.price)}</div>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'8px'}}>
             <span style={{background:bg(q.changePct),color:c,padding:'2px 8px',borderRadius:'4px',fontSize:'13px',fontWeight:'bold'}}>
               {pos?'▲':'▼'} {Math.abs(q.changePct).toFixed(2)}%
             </span>
-            <span style={{fontSize:'12px',color:'#546e7a'}}>{q.change>=0?'+':''}{fmt(q.change)}</span>
+            <span style={{fontSize:'12px',color:'#8ea5b0'}}>{q.change>=0?'+':''}{fmt(q.change)}</span>
           </div>
           {pct52!=null&&q.high52w>0&&(
             <div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#37474f',marginBottom:'2px'}}>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#607d8b',marginBottom:'2px'}}>
                 <span>52W 저점</span>
-                <span style={{color:pct52<20?'#00e676':pct52>80?'#ff5252':'#546e7a'}}>{zone}</span>
+                <span style={{color:pct52<20?'#00e676':pct52>80?'#ff5252':'#8ea5b0'}}>{zone}</span>
                 <span>ATH -{fromATH?.toFixed(1)}%</span>
               </div>
               <div style={{background:'#1a2535',height:'5px',borderRadius:'3px'}}>
@@ -220,7 +220,7 @@ const SectorCard: React.FC<{def:typeof SECTOR_DEF[0];quotes:Record<string,Quote>
           <span style={{fontSize:'17px'}}>{def.icon}</span>
           <div>
             <div style={{fontWeight:'bold',color:'#eceff1',fontSize:'14px'}}>{def.name}</div>
-            <div style={{color:'#37474f',fontSize:'11px'}}>{def.yf} ETF</div>
+            <div style={{color:'#607d8b',fontSize:'11px'}}>{def.yf} ETF</div>
           </div>
         </div>
         {loading?<Spinner/>:<span style={{color:clr(pct),fontWeight:'bold',fontSize:'15px'}}>{pct>=0?'+':''}{pct.toFixed(2)}%</span>}
@@ -231,7 +231,7 @@ const SectorCard: React.FC<{def:typeof SECTOR_DEF[0];quotes:Record<string,Quote>
           return (
             <div key={sym} style={{background:'#0a1628',borderRadius:'5px',padding:'4px 7px',border:`1px solid ${sc}22`}}>
               <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
-                <span style={{fontSize:'11px',color:'#546e7a',flexShrink:0,width:'36px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sym.replace('.KS','')}</span>
+                <span style={{fontSize:'11px',color:'#8ea5b0',flexShrink:0,width:'36px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sym.replace('.KS','')}</span>
                 <span style={{fontSize:'12px',color:'#b0bec5',flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',minWidth:0}}>{STOCK_NAME[sym]??sym}</span>
                 {loading||!q
                   ? <Spinner/>
@@ -279,17 +279,17 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
     <div style={{background:'#0d1b2e',borderRadius:'8px',padding:'16px',border:'1px solid #1a3050'}}>
       {/* 헤더 */}
       <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'14px'}}>
-        <button onClick={prev} style={{background:'#1a2535',border:'none',color:'#90a4ae',cursor:'pointer',width:'30px',height:'30px',borderRadius:'50%',fontSize:'18px',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'inherit'}}>‹</button>
+        <button onClick={prev} style={{background:'#1a2535',border:'none',color:'#b0c4cc',cursor:'pointer',width:'30px',height:'30px',borderRadius:'50%',fontSize:'18px',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'inherit'}}>‹</button>
         <span style={{fontSize:'18px',fontWeight:'bold',color:'#eceff1',flex:1}}>{yr}년 {MONTHS_KO[mo]}</span>
         <button onClick={goT} style={{background:'#1a2535',border:'1px solid #40c4ff44',color:'#40c4ff',cursor:'pointer',padding:'5px 12px',borderRadius:'6px',fontSize:'13px',fontFamily:'inherit'}}>오늘</button>
-        <button onClick={next} style={{background:'#1a2535',border:'none',color:'#90a4ae',cursor:'pointer',width:'30px',height:'30px',borderRadius:'50%',fontSize:'18px',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'inherit'}}>›</button>
+        <button onClick={next} style={{background:'#1a2535',border:'none',color:'#b0c4cc',cursor:'pointer',width:'30px',height:'30px',borderRadius:'50%',fontSize:'18px',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'inherit'}}>›</button>
       </div>
 
       {/* 요일 헤더 */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',marginBottom:'4px'}}>
         {DAYS_KO.map((d,i)=>(
           <div key={d} style={{textAlign:'center',fontSize:'13px',fontWeight:'bold',padding:'4px 0',
-            color:i===0?'#ff5252':i===6?'#5c9eff':'#546e7a'}}>{d}</div>
+            color:i===0?'#ff5252':i===6?'#5c9eff':'#8ea5b0'}}>{d}</div>
         ))}
       </div>
 
@@ -316,11 +316,11 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
                     display:'flex',alignItems:'center',justifyContent:'center',
                     marginBottom:'4px',
                     fontSize:'14px',fontWeight:isT?'bold':'normal',
-                    color:isT?'#060d1a':di===0?'#ff5252':di===6?'#5c9eff':isPast?'#37474f':'#90a4ae',
+                    color:isT?'#060d1a':di===0?'#ff5252':di===6?'#5c9eff':isPast?'#607d8b':'#b0c4cc',
                   }}>{day}</div>
                   <div style={{display:'flex',flexDirection:'column',gap:'3px'}}>
                     {dayEvs.map(ev=>{
-                      const ec=EVT_COLOR[ev.type]??'#546e7a';
+                      const ec=EVT_COLOR[ev.type]??'#8ea5b0';
                       return (
                         <div key={ev.id}
                           onClick={()=>setSel(sel?.id===ev.id?null:ev)}
@@ -348,25 +348,25 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}>
             <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
               <span style={{fontSize:'11px',padding:'2px 7px',borderRadius:'3px',
-                background:(EVT_COLOR[sel.type]??'#546e7a')+'22',
-                color:EVT_COLOR[sel.type]??'#546e7a',
-                border:`1px solid ${EVT_COLOR[sel.type]??'#546e7a'}44`}}>
+                background:(EVT_COLOR[sel.type]??'#8ea5b0')+'22',
+                color:EVT_COLOR[sel.type]??'#8ea5b0',
+                border:`1px solid ${EVT_COLOR[sel.type]??'#8ea5b0'}44`}}>
                 {EVT_LABEL[sel.type]??sel.type}
               </span>
-              <span style={{fontSize:'12px',color:'#546e7a'}}>{sel.date} · {sel.country}</span>
+              <span style={{fontSize:'12px',color:'#8ea5b0'}}>{sel.date} · {sel.country}</span>
               <span style={{fontSize:'11px',color:sel.imp==='high'?'#ff5252':sel.imp==='med'?'#ffd740':'#00e676'}}>
                 {'▮'.repeat(sel.imp==='high'?3:sel.imp==='med'?2:1)}
               </span>
             </div>
-            <button onClick={()=>setSel(null)} style={{background:'none',border:'none',color:'#546e7a',cursor:'pointer',fontSize:'18px',padding:'0 4px'}}>×</button>
+            <button onClick={()=>setSel(null)} style={{background:'none',border:'none',color:'#8ea5b0',cursor:'pointer',fontSize:'18px',padding:'0 4px'}}>×</button>
           </div>
           <div style={{fontSize:'16px',color:'#eceff1',fontWeight:'bold',marginBottom:'4px'}}>{sel.title}</div>
-          {sel.desc&&<div style={{fontSize:'13px',color:'#90a4ae'}}>{sel.desc}</div>}
+          {sel.desc&&<div style={{fontSize:'13px',color:'#b0c4cc'}}>{sel.desc}</div>}
         </div>
       )}
 
       {/* 범례 */}
-      <div style={{display:'flex',gap:'14px',fontSize:'12px',color:'#37474f',marginTop:'12px',flexWrap:'wrap'}}>
+      <div style={{display:'flex',gap:'14px',fontSize:'12px',color:'#607d8b',marginTop:'12px',flexWrap:'wrap'}}>
         {Object.entries(EVT_COLOR).map(([k,c])=>(
           <span key={k}><span style={{color:c}}>■</span> {EVT_LABEL[k]}</span>
         ))}
@@ -408,7 +408,7 @@ const MarketAnalysis: React.FC<{quotes:Record<string,Quote>;fg:{value:number;lab
     phaseDesc='긍정적 심리 지속 중. 상승 섹터 집중 전략이 유효합니다.';
     strategy='성장·테크 ETF 비중 확대, 손절 라인 타이트하게 관리';
   } else {
-    phase='중립 — 선별적 접근';phaseColor='#90a4ae';
+    phase='중립 — 선별적 접근';phaseColor='#b0c4cc';
     phaseDesc='방향성 불명확. 섹터 로테이션에 집중하며 분산 유지 권장.';
     strategy='섹터 순환 주시하며 분할매수, 한 섹터 집중 투자 지양';
   }
@@ -424,47 +424,47 @@ const MarketAnalysis: React.FC<{quotes:Record<string,Quote>;fg:{value:number;lab
 
   if(loading) return (
     <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'24px',textAlign:'center'}}>
-      <Spinner s={20}/><div style={{color:'#546e7a',fontSize:'13px',marginTop:'8px'}}>시장 분석 중...</div>
+      <Spinner s={20}/><div style={{color:'#8ea5b0',fontSize:'13px',marginTop:'8px'}}>시장 분석 중...</div>
     </div>
   );
 
   return (
     <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'16px'}}>
       <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'14px'}}>
-        🧭 시장 분석 & ETF 추천 <span style={{fontSize:'11px',color:'#546e7a',letterSpacing:'0'}}>· 공포&탐욕 + 52주 포지션 기반 자동 분석</span>
+        🧭 시장 분석 & ETF 추천 <span style={{fontSize:'11px',color:'#8ea5b0',letterSpacing:'0'}}>· 공포&탐욕 + 52주 포지션 기반 자동 분석</span>
       </div>
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 2fr',gap:'12px'}}>
         {/* 시장 국면 */}
         <div style={{background:'#060d1a',borderRadius:'8px',padding:'14px',border:`1px solid ${phaseColor}33`}}>
-          <div style={{fontSize:'11px',color:'#546e7a',letterSpacing:'1px',marginBottom:'8px'}}>현재 시장 국면</div>
+          <div style={{fontSize:'11px',color:'#8ea5b0',letterSpacing:'1px',marginBottom:'8px'}}>현재 시장 국면</div>
           <div style={{fontSize:'15px',fontWeight:'bold',color:phaseColor,marginBottom:'10px',lineHeight:'1.4'}}>{phase}</div>
-          <div style={{fontSize:'13px',color:'#90a4ae',lineHeight:'1.6',marginBottom:'10px'}}>{phaseDesc}</div>
+          <div style={{fontSize:'13px',color:'#b0c4cc',lineHeight:'1.6',marginBottom:'10px'}}>{phaseDesc}</div>
           <div style={{background:phaseColor+'12',borderLeft:`3px solid ${phaseColor}`,padding:'7px 10px',borderRadius:'4px',fontSize:'13px',color:phaseColor,lineHeight:'1.5'}}>
             💡 {strategy}
           </div>
           <div style={{display:'flex',gap:'16px',marginTop:'12px'}}>
             <div style={{textAlign:'center'}}>
               <div style={{fontSize:'24px',fontWeight:'bold',color:fgVal<40?'#ff5252':fgVal>60?'#00e676':'#ffd740'}}>{fgVal}</div>
-              <div style={{fontSize:'11px',color:'#546e7a'}}>공포&탐욕</div>
+              <div style={{fontSize:'11px',color:'#8ea5b0'}}>공포&탐욕</div>
             </div>
             <div style={{textAlign:'center'}}>
               <div style={{fontSize:'24px',fontWeight:'bold',color:avgPos<30?'#00e676':avgPos>70?'#ff5252':'#40c4ff'}}>{avgPos.toFixed(0)}%</div>
-              <div style={{fontSize:'11px',color:'#546e7a'}}>52주 평균</div>
+              <div style={{fontSize:'11px',color:'#8ea5b0'}}>52주 평균</div>
             </div>
           </div>
         </div>
 
         {/* 섹터 모멘텀 */}
         <div style={{background:'#060d1a',borderRadius:'8px',padding:'14px',border:'1px solid #1a2535'}}>
-          <div style={{fontSize:'11px',color:'#546e7a',letterSpacing:'1px',marginBottom:'10px'}}>오늘 섹터 성과 순위</div>
+          <div style={{fontSize:'11px',color:'#8ea5b0',letterSpacing:'1px',marginBottom:'10px'}}>오늘 섹터 성과 순위</div>
           {sectorPerf.length===0
-            ? <div style={{color:'#37474f',fontSize:'13px',paddingTop:'20px',textAlign:'center'}}>데이터 로딩 중...</div>
+            ? <div style={{color:'#607d8b',fontSize:'13px',paddingTop:'20px',textAlign:'center'}}>데이터 로딩 중...</div>
             : sectorPerf.map((s,i)=>{
                 const barW=Math.min(100,Math.abs(s.pct)*20+10);
                 return (
                   <div key={s.yf} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'10px'}}>
-                    <div style={{fontSize:'13px',color:'#37474f',width:'12px',textAlign:'right',flexShrink:0}}>{i+1}</div>
+                    <div style={{fontSize:'13px',color:'#607d8b',width:'12px',textAlign:'right',flexShrink:0}}>{i+1}</div>
                     <div style={{fontSize:'15px',flexShrink:0}}>{s.icon}</div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{display:'flex',justifyContent:'space-between',marginBottom:'3px'}}>
@@ -483,8 +483,8 @@ const MarketAnalysis: React.FC<{quotes:Record<string,Quote>;fg:{value:number;lab
 
         {/* ETF 추천 */}
         <div style={{background:'#060d1a',borderRadius:'8px',padding:'14px',border:'1px solid #1a2535'}}>
-          <div style={{fontSize:'11px',color:'#546e7a',letterSpacing:'1px',marginBottom:'10px'}}>
-            추천 ETF <span style={{color:'#37474f'}}>· 현재 공포&탐욕 지수({fgVal}) 기반</span>
+          <div style={{fontSize:'11px',color:'#8ea5b0',letterSpacing:'1px',marginBottom:'10px'}}>
+            추천 ETF <span style={{color:'#607d8b'}}>· 현재 공포&탐욕 지수({fgVal}) 기반</span>
           </div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px'}}>
             {finalEtfs.map((e,i)=>(
@@ -494,12 +494,12 @@ const MarketAnalysis: React.FC<{quotes:Record<string,Quote>;fg:{value:number;lab
                   <span style={{background:e.color+'22',color:e.color,fontSize:'11px',padding:'2px 6px',borderRadius:'4px',fontWeight:'bold'}}>{e.tag}</span>
                 </div>
                 <div style={{fontSize:'18px',fontWeight:'bold',color:e.color,marginBottom:'2px'}}>{e.sym}</div>
-                <div style={{fontSize:'13px',color:'#90a4ae',marginBottom:'4px'}}>{e.name}</div>
-                <div style={{fontSize:'12px',color:'#546e7a',lineHeight:'1.4'}}>{e.desc}</div>
+                <div style={{fontSize:'13px',color:'#b0c4cc',marginBottom:'4px'}}>{e.name}</div>
+                <div style={{fontSize:'12px',color:'#8ea5b0',lineHeight:'1.4'}}>{e.desc}</div>
               </div>
             ))}
             {finalEtfs.length===0&&(
-              <div style={{gridColumn:'1/-1',textAlign:'center',color:'#37474f',fontSize:'13px',padding:'20px'}}>
+              <div style={{gridColumn:'1/-1',textAlign:'center',color:'#607d8b',fontSize:'13px',padding:'20px'}}>
                 시장 데이터 로딩 후 표시됩니다
               </div>
             )}
@@ -538,7 +538,7 @@ const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({d
   const [inv,setInv]   = useState<string>('외국인');
   const [side,setSide] = useState<'buy'|'sell'>('buy');
   if(!data?.data) return (
-    <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'16px',marginBottom:'14px',color:'#37474f',fontSize:'12px',textAlign:'center'}}>
+    <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'16px',marginBottom:'14px',color:'#607d8b',fontSize:'12px',textAlign:'center'}}>
       👥 투자자별 순매수 — GitHub Actions 다음 실행 후 표시됩니다 (KOSPI · pykrx)
     </div>
   );
@@ -553,7 +553,7 @@ const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({d
     <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'16px',marginBottom:'14px'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',flexWrap:'wrap',gap:'8px'}}>
         <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff'}}>
-          👥 투자자별 순매수 TOP 10 <span style={{fontSize:'11px',color:'#546e7a',letterSpacing:'0'}}>· {dateLabel}</span>
+          👥 투자자별 순매수 TOP 10 <span style={{fontSize:'11px',color:'#8ea5b0',letterSpacing:'0'}}>· {dateLabel}</span>
         </div>
         {/* buy/sell toggle */}
         <div style={{display:'flex',gap:'4px'}}>
@@ -561,7 +561,7 @@ const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({d
             <button key={s} onClick={()=>setSide(s)} style={{
               padding:'4px 12px',borderRadius:'6px',border:'none',cursor:'pointer',fontSize:'12px',fontWeight:'700',
               background: side===s?(s==='buy'?'rgba(0,230,118,.2)':'rgba(255,82,82,.2)'):'#1a2535',
-              color: side===s?(s==='buy'?'#00e676':'#ff5252'):'#546e7a',
+              color: side===s?(s==='buy'?'#00e676':'#ff5252'):'#8ea5b0',
             }}>{s==='buy'?'▲ 순매수':'▼ 순매도'}</button>
           ))}
         </div>
@@ -573,7 +573,7 @@ const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({d
           <button key={t} onClick={()=>setInv(t)} style={{
             padding:'5px 14px',borderRadius:'16px',border:'none',cursor:'pointer',fontSize:'12px',fontWeight:'600',
             background: inv===t ? INV_COLORS[t] : '#1a2535',
-            color: inv===t ? '#060d1a' : '#546e7a',
+            color: inv===t ? '#060d1a' : '#8ea5b0',
           }}>{t}</button>
         ))}
       </div>
@@ -581,12 +581,12 @@ const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({d
       {/* TOP 10 */}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'6px'}}>
         {list.length===0
-          ? <div style={{gridColumn:'1/-1',color:'#37474f',fontSize:'12px',textAlign:'center',padding:'12px'}}>데이터 없음</div>
+          ? <div style={{gridColumn:'1/-1',color:'#607d8b',fontSize:'12px',textAlign:'center',padding:'12px'}}>데이터 없음</div>
           : list.slice(0,10).map((item,i)=>(
             <div key={item.code} style={{padding:'7px 10px',background:'#06111f',borderRadius:'6px',border:'1px solid #1a2535'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
                 <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
-                  <span style={{fontSize:'11px',color:'#37474f',fontWeight:'700'}}>{i+1}</span>
+                  <span style={{fontSize:'11px',color:'#607d8b',fontWeight:'700'}}>{i+1}</span>
                   <span style={{fontSize:'13px',color:'#eceff1',fontWeight:'600'}}>{item.name}</span>
                 </div>
                 <span style={{fontSize:'13px',fontWeight:'700',color:side==='buy'?'#00e676':'#ff5252'}}>{fmtBnD(item.amount)}</span>
@@ -682,8 +682,8 @@ export default function StockDashboard() {
   const filteredNews=nf==='all'?news:nf==='trump'?news.filter((n:any)=>n.isTrump):news.filter((n:any)=>n.category===nf);
   const updTime=mdata?.updatedAt?new Date(mdata.updatedAt).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}):null;
 
-  const tabS=(k:typeof tab):React.CSSProperties=>({padding:'6px 10px',border:'none',cursor:'pointer',fontSize:'12px',fontFamily:'inherit',borderBottom:tab===k?'2px solid #40c4ff':'2px solid transparent',background:'transparent',color:tab===k?'#40c4ff':'#546e7a',fontWeight:tab===k?'bold':'normal',whiteSpace:'nowrap' as const});
-  const fBtnS=(k:string):React.CSSProperties=>({padding:'3px 10px',borderRadius:'4px',border:`1px solid ${nf===k?'#40c4ff':'#1a2535'}`,background:nf===k?'#40c4ff22':'transparent',color:nf===k?'#40c4ff':'#546e7a',cursor:'pointer',fontSize:'13px',fontFamily:'inherit'});
+  const tabS=(k:typeof tab):React.CSSProperties=>({padding:'6px 10px',border:'none',cursor:'pointer',fontSize:'12px',fontFamily:'inherit',borderBottom:tab===k?'2px solid #40c4ff':'2px solid transparent',background:'transparent',color:tab===k?'#40c4ff':'#8ea5b0',fontWeight:tab===k?'bold':'normal',whiteSpace:'nowrap' as const});
+  const fBtnS=(k:string):React.CSSProperties=>({padding:'3px 10px',borderRadius:'4px',border:`1px solid ${nf===k?'#40c4ff':'#1a2535'}`,background:nf===k?'#40c4ff22':'transparent',color:nf===k?'#40c4ff':'#8ea5b0',cursor:'pointer',fontSize:'13px',fontFamily:'inherit'});
 
   return (
     <div style={{background:'#060d1a',color:'#e0e6ed',fontFamily:"'Inter','Noto Sans KR',system-ui,sans-serif",minHeight:'100vh',margin:0,padding:0}}>
@@ -704,7 +704,7 @@ export default function StockDashboard() {
           <div key={a.id} style={{background:a.type==='trump'?'#1a0808':'#0a1220',border:`1px solid ${a.type==='trump'?'#ff5252':'#40c4ff'}`,borderRadius:'8px',padding:'8px 12px',maxWidth:'320px',fontSize:'13px',color:'#cfd8dc',animation:'slideIn .3s ease',boxShadow:'0 4px 12px rgba(0,0,0,.6)'}}>
             <div style={{display:'flex',justifyContent:'space-between',gap:'8px'}}>
               <div>{a.text}</div>
-              <button onClick={()=>setAlerts(p=>p.filter(x=>x.id!==a.id))} style={{background:'none',border:'none',color:'#546e7a',cursor:'pointer',fontSize:'16px',padding:0}}>×</button>
+              <button onClick={()=>setAlerts(p=>p.filter(x=>x.id!==a.id))} style={{background:'none',border:'none',color:'#8ea5b0',cursor:'pointer',fontSize:'16px',padding:0}}>×</button>
             </div>
           </div>
         ))}
@@ -714,17 +714,17 @@ export default function StockDashboard() {
       <div style={{background:'linear-gradient(135deg,#07122a,#0d1f3f)',borderBottom:'2px solid #00d4ff33',padding:'10px 20px',display:'flex',alignItems:'center',justifyContent:'space-between',position:'sticky',top:0,zIndex:1000,boxShadow:'0 4px 24px rgba(0,212,255,.15)'}}>
         <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
           <div style={{fontSize:'19px',fontWeight:'bold',background:'linear-gradient(90deg,#00d4ff,#00e676)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>◆ MARKET TERMINAL</div>
-          <div style={{fontSize:'11px',color:'#37474f',letterSpacing:'1px'}}>GitHub Actions 10분 갱신 · yfinance · CoinGecko · Alternative.me · RSS</div>
+          <div style={{fontSize:'11px',color:'#607d8b',letterSpacing:'1px'}}>GitHub Actions 10분 갱신 · yfinance · CoinGecko · Alternative.me · RSS</div>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:'12px',fontSize:'13px'}}>
           {stale&&<span style={{color:'#ffd740',fontSize:'12px'}}>⚠ 데이터 15분 초과</span>}
           <div style={{display:'flex',gap:'6px'}}>
             <span style={{background:ms.usStatus==='개장중'?'#00e67622':'#ff525222',border:`1px solid ${ms.usColor}44`,color:ms.usColor,padding:'3px 10px',borderRadius:'4px'}}>🇺🇸 US {ms.usStatus}</span>
-            <span style={{background:ms.krStatus==='개장중'?'#00e67622':'#1a2535',color:ms.krStatus==='개장중'?'#00e676':'#546e7a',padding:'3px 10px',borderRadius:'4px'}}>🇰🇷 KR {ms.krStatus}</span>
+            <span style={{background:ms.krStatus==='개장중'?'#00e67622':'#1a2535',color:ms.krStatus==='개장중'?'#00e676':'#8ea5b0',padding:'3px 10px',borderRadius:'4px'}}>🇰🇷 KR {ms.krStatus}</span>
           </div>
           <div style={{textAlign:'right'}}>
             <div style={{fontWeight:'bold',fontSize:'17px',color:'#40c4ff',fontVariantNumeric:'tabular-nums',letterSpacing:'1px'}}>{nowT.toLocaleTimeString('ko-KR',{hour12:false})}</div>
-            <div style={{fontSize:'11px',color:'#37474f'}}>{nowT.toLocaleDateString('ko-KR')} KST</div>
+            <div style={{fontSize:'11px',color:'#607d8b'}}>{nowT.toLocaleDateString('ko-KR')} KST</div>
           </div>
           {updTime&&<div style={{fontSize:'11px',color:'#00e676',textAlign:'right'}}><div>● 데이터 기준</div><div>{updTime}</div></div>}
           {loading&&<Spinner s={16}/>}
@@ -737,7 +737,7 @@ export default function StockDashboard() {
         {loading&&(
           <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'30px',textAlign:'center',marginBottom:'12px'}}>
             <Spinner s={28}/><br/><br/>
-            <div style={{color:'#90a4ae',fontSize:'15px'}}>데이터 로딩 중...</div>
+            <div style={{color:'#b0c4cc',fontSize:'15px'}}>데이터 로딩 중...</div>
           </div>
         )}
 
@@ -746,7 +746,7 @@ export default function StockDashboard() {
           {/* 주요 지수 */}
           <div>
             <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>
-              📊 주요 지수 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 10분 갱신</span>
+              📊 주요 지수 <span style={{color:'#607d8b',letterSpacing:'0'}}>· yfinance 10분 갱신</span>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}}>
               {IDX_META.map(m=>{
@@ -757,13 +757,13 @@ export default function StockDashboard() {
                 return (
                   <div key={m.yf} style={{background:'#0d1b2e',border:'1px solid #1a3050',borderLeft:`3px solid ${c}`,borderRadius:'6px',padding:'7px 8px'}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}}>
-                      <span style={{fontSize:'10px',color:'#546e7a',fontWeight:'600',letterSpacing:'1px'}}>{m.sym}</span>
+                      <span style={{fontSize:'10px',color:'#8ea5b0',fontWeight:'600',letterSpacing:'1px'}}>{m.sym}</span>
                       {loading||!q?<Spinner s={12}/>:
                         <span style={{fontSize:'11px',fontWeight:'700',color:c}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</span>}
                     </div>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}}>
                       <span style={{fontSize:'14px',fontWeight:'700',color:'#eceff1'}}>{loading||!q?'—':fmt(q.price)}</span>
-                      {fromATH!=null&&<span style={{fontSize:'9px',color:'#37474f'}}>ATH -{fromATH.toFixed(1)}%</span>}
+                      {fromATH!=null&&<span style={{fontSize:'9px',color:'#607d8b'}}>ATH -{fromATH.toFixed(1)}%</span>}
                     </div>
                     {p52!=null&&(
                       <div style={{height:'3px',background:'#1a2535',borderRadius:'2px'}}>
@@ -777,7 +777,7 @@ export default function StockDashboard() {
           </div>
           {/* 섹터 ETF & 종목 */}
           <div>
-            <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>🔥 섹터 ETF & 종목 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 실제 등락률</span></div>
+            <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>🔥 섹터 ETF & 종목 <span style={{color:'#607d8b',letterSpacing:'0'}}>· yfinance 실제 등락률</span></div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'6px'}}>
               {SECTOR_DEF.map(d=><SectorCard key={d.yf} def={d} quotes={quotes} loading={loading}/>)}
             </div>
@@ -821,12 +821,12 @@ export default function StockDashboard() {
                     {[['all','전체'],['trump','트럼프'],['macro','매크로'],['tech','테크'],['crypto','코인'],['korea','한국'],['energy','에너지'],['earnings','실적']].map(([k,l])=>(
                       <button key={k} style={fBtnS(k)} onClick={()=>setNF(k)}>{l}</button>
                     ))}
-                    <span style={{marginLeft:'auto',fontSize:'10px',color:news.length?'#00e676':'#546e7a'}}>
+                    <span style={{marginLeft:'auto',fontSize:'10px',color:news.length?'#00e676':'#8ea5b0'}}>
                       {news.length?`● ${news.length}건`:'로딩 중...'}
                     </span>
                   </div>
                   <div>
-                    {filteredNews.length===0&&<div style={{textAlign:'center',color:'#37474f',padding:'30px',fontSize:'13px'}}>뉴스 없음</div>}
+                    {filteredNews.length===0&&<div style={{textAlign:'center',color:'#607d8b',padding:'30px',fontSize:'13px'}}>뉴스 없음</div>}
                     {filteredNews.map((item:any)=>{
                       const SC={positive:'#00e676',negative:'#ff5252',neutral:'#ffd740'} as const;
                       const SI={positive:'↑ 호재',negative:'↓ 악재',neutral:'→ 중립'} as const;
@@ -835,7 +835,7 @@ export default function StockDashboard() {
                           <div style={{display:'flex',gap:'5px',alignItems:'center',marginBottom:'4px',flexWrap:'wrap'}}>
                             {item.isTrump&&<span style={{fontSize:'10px',background:'rgba(255,82,82,.2)',color:'#ff8a80',padding:'1px 4px',borderRadius:'3px'}}>🎭 트럼프</span>}
                             <span style={{fontSize:'10px',color:SC[item.sentiment as keyof typeof SC],background:SC[item.sentiment as keyof typeof SC]+'22',padding:'1px 4px',borderRadius:'3px'}}>{SI[item.sentiment as keyof typeof SI]}</span>
-                            <span style={{fontSize:'10px',color:'#37474f',marginLeft:'auto'}}>{item.source} · {item.time}</span>
+                            <span style={{fontSize:'10px',color:'#607d8b',marginLeft:'auto'}}>{item.source} · {item.time}</span>
                           </div>
                           <a href={item.url} target="_blank" rel="noreferrer" style={{textDecoration:'none'}}>
                             <div style={{fontSize:'13px',color:'#cfd8dc',lineHeight:'1.5',cursor:'pointer'}}
@@ -861,7 +861,7 @@ export default function StockDashboard() {
                       <div style={{width:'22px',height:'22px',borderRadius:'50%',background:'#1a2535',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'#ffd740',fontWeight:'bold',flexShrink:0}}>{c.symbol.toUpperCase().slice(0,2)}</div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:'13px',color:'#eceff1',fontWeight:'600'}}>{c.name}</div>
-                        <div style={{fontSize:'10px',color:'#37474f'}}>{fmtCap(c.market_cap)}</div>
+                        <div style={{fontSize:'10px',color:'#607d8b'}}>{fmtCap(c.market_cap)}</div>
                       </div>
                       <div style={{textAlign:'right',flexShrink:0}}>
                         <div style={{fontSize:'14px',color:'#f1f5f9',fontWeight:'700'}}>${c.current_price.toLocaleString()}</div>
@@ -881,7 +881,7 @@ export default function StockDashboard() {
                     <div key={fx.pair} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:'1px solid #1a2535'}}>
                       <div>
                         <span style={{fontSize:'14px',color:'#eceff1'}}>{fx.flag} {fx.pair}</span>
-                        <span style={{fontSize:'11px',color:'#37474f',marginLeft:'8px'}}>{fx.label}</span>
+                        <span style={{fontSize:'11px',color:'#607d8b',marginLeft:'8px'}}>{fx.label}</span>
                       </div>
                       <div style={{fontSize:'16px',fontWeight:'700',color:'#f1f5f9'}}>₩{fmt(fx.r,1)}</div>
                     </div>
@@ -900,7 +900,7 @@ export default function StockDashboard() {
                         <span style={{fontSize:'17px',flexShrink:0}}>{m.icon}</span>
                         <div style={{flex:1,minWidth:0}}>
                           <div style={{fontSize:'13px',color:'#eceff1',fontWeight:'600'}}>{m.name}</div>
-                          <div style={{fontSize:'10px',color:'#37474f'}}>{m.unit}</div>
+                          <div style={{fontSize:'10px',color:'#607d8b'}}>{m.unit}</div>
                         </div>
                         {loading||!q?<Spinner/>:
                           <div style={{textAlign:'right',flexShrink:0}}>
@@ -918,7 +918,7 @@ export default function StockDashboard() {
           </div>{/* 우열 sticky 닫기 */}
         </div>{/* 메인 2열 그리드 닫기 */}
 
-        <div style={{borderTop:'1px solid #1a2535',marginTop:'12px',paddingTop:'10px',display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#37474f',flexWrap:'wrap',gap:'6px'}}>
+        <div style={{borderTop:'1px solid #1a2535',marginTop:'12px',paddingTop:'10px',display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#607d8b',flexWrap:'wrap',gap:'6px'}}>
           <span>⚡ GitHub Actions 10분 갱신 (public repo → Actions 무료·무제한)</span>
           <span>📡 yfinance · CoinGecko · Open ER API · Alternative.me · RSS · deep-translator · pykrx</span>
           <span>⚠️ 투자 판단은 본인 책임 | © 2026 Market Terminal</span>
