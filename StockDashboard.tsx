@@ -764,21 +764,24 @@ const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({d
   const [side,setSide] = useState<'buy'|'sell'>('buy');
   if(!data?.data) return (
     <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'16px',marginBottom:'14px',color:'#607d8b',fontSize:'12px',textAlign:'center'}}>
-      👥 투자자별 순매수 — GitHub Actions 다음 실행 후 표시됩니다 (KOSPI · pykrx)
+      👥 투자자별 데이터 — GitHub Actions 다음 실행 후 표시됩니다
     </div>
   );
   const list = data.data[inv]?.[side] ?? [];
   const maxAmt = Math.max(...list.map(x=>x.amount), 1);
   const accentColor = INV_COLORS[inv] ?? '#40c4ff';
   const dateLabel = data.date
-    ? `${data.date.slice(0,4)}-${data.date.slice(4,6)}-${data.date.slice(6,8)} 기준 · KOSPI · pykrx`
+    ? `${data.date.slice(0,4)}-${data.date.slice(4,6)}-${data.date.slice(6,8)} 기준`
     : '';
+  // 외국인: amount=외국인비율×100 (7620=76.20%), 기관/개인: amount=거래대금(원)
+  const isRatioBased = inv==='외국인' && list.length>0 && list[0].amount<10000;
+  const fmtAmt = (n:number) => isRatioBased ? `${(n/100).toFixed(1)}%` : fmtBnD(n);
 
   return (
     <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'16px',marginBottom:'14px'}}>
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px',flexWrap:'wrap',gap:'8px'}}>
         <div style={{fontSize:'12px',letterSpacing:'2px',color:'#40c4ff'}}>
-          👥 투자자별 순매수 TOP 10 <span style={{fontSize:'11px',color:'#8ea5b0',letterSpacing:'0'}}>· {dateLabel}</span>
+          👥 투자자별 TOP 10 <span style={{fontSize:'11px',color:'#8ea5b0',letterSpacing:'0'}}>· {dateLabel}{isRatioBased?' · 외국인지분율':' · 거래대금'}</span>
         </div>
         {/* buy/sell toggle */}
         <div style={{display:'flex',gap:'4px'}}>
@@ -814,7 +817,7 @@ const InvestorTradingPanel: React.FC<{data:MarketData['investorTrading']}> = ({d
                   <span style={{fontSize:'11px',color:'#607d8b',fontWeight:'700'}}>{i+1}</span>
                   <span style={{fontSize:'13px',color:'#eceff1',fontWeight:'600'}}>{item.name}</span>
                 </div>
-                <span style={{fontSize:'13px',fontWeight:'700',color:side==='buy'?'#00e676':'#ff5252'}}>{fmtBnD(item.amount)}</span>
+                <span style={{fontSize:'13px',fontWeight:'700',color:side==='buy'?'#00e676':'#ff5252'}}>{fmtAmt(item.amount)}</span>
               </div>
               <div style={{height:'4px',background:'#1a2535',borderRadius:'2px'}}>
                 <div style={{height:'100%',width:`${(item.amount/maxAmt)*100}%`,background:accentColor,borderRadius:'2px',opacity:0.6}}/>
