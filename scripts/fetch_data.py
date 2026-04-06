@@ -324,11 +324,15 @@ def _krx_otp_download(dates, UA):
 
 
 def _naver_investor(dates, UA):
-    """Naver Finance 스크래핑 — 외국인/기관 순매수 상위"""
+    """Naver Finance 스크래핑 — 외국인/기관 순매수 상위
+
+    frgn_invest.nhn: 외국인 순매수잔고 상위 (KOSPI)
+    컬럼 구조: [종목명(link), 현재가, 전일비, 등락률, 순매수잔량, 비중(%)]
+    """
     try:
         from bs4 import BeautifulSoup
     except ImportError:
-        print("  beautifulsoup4 없음 — Naver 스크래핑 불가", file=sys.stderr)
+        print("  beautifulsoup4 없음", file=sys.stderr)
         return None
 
     HDR = {
@@ -337,96 +341,87 @@ def _naver_investor(dates, UA):
         'Referer': 'https://finance.naver.com/',
     }
 
-    # Naver Finance 투자자별 순매수 페이지
-    # tp_cd: 4=외국인순매수, 3=기관순매수, 5=개인순매수  (sosok: 0=KOSPI, 1=KOSDAQ)
-    tp_map = {'외국인': '4', '기관': '3', '개인': '5'}
+    def scrape_naver_invest(url, label):
+        r = requests.get(url, headers=HDR, timeout=12)
+        r.encoding = 'euc-kr'
+        print(f"  {label}: status={r.status_code} len={len(r.text)}", file=sys.stderr)
+        if not r.ok:
+            return []
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(r.text, 'lxml')
+        table = soup.find('table', class_='type_2')
+        if not table:
+            print(f"  {label}: 테이블 없음", file=sys.stderr)
+            return []
+
+        entries = []
+        debug_logged = False
+        for row in table.find_all('tr'):
+            cols = row.find_all('td')
+            if len(cols) < 4:
+                continue
+            a_tag = row.find('a', href=lambda h: h and 'code=' in h)
+            if not a_tag:
+                continue
+            code = a_tag['href'].split('code=')[-1].split('&')[0].strip()
+            name = a_tag.text.strip()
+            if not name:
+                continue
+
+            # 첫 번째 행 컬럼 값 디버그 출력
+            if not debug_logged:
+                col_texts = [c.text.strip() for c in cols]
+                print(f"  {label} cols sample: {col_texts}", file=sys.stderr)
+                debug_logged = True
+
+            # frgn_invest.nhn 컬럼: [0]종목명 [1]현재가 [2]전일비 [3]등락률 [4]순매수잔량 [5]비중
+            # 숫자가 들어있는 컬럼 중 ','로 구분된 큰 수를 순매수로 사용
+            amount = 0
+            for i in range(len(cols)):
+                raw = cols[i].text.strip()
+                # 등락률(%), 비중(%)는 제외; 순수 숫자만 추출
+                if '%' in raw:
+                    continue
+                cleaned = raw.replace(',', '').lstrip('+').lstrip('-')
+                if cleaned.isdigit() and len(cleaned) >= 4:
+                    # 첫 번째 큰 정수가 현재가, 두 번째가 순매수잔량
+                    if i >= 3:  # 등락률 이후 컬럼
+                        amount = int(cleaned)
+                        break
+
+            entries.append({'code': code, 'name': name, 'amount': amount})
+
+        print(f"  {label}: {len(entries)} 종목, 금액 non-zero={sum(1 for e in entries if e['amount']>0)}", file=sys.stderr)
+        return entries
+
     inv_result = {}
 
-    for label, tp_cd in tp_map.items():
-        for sosok, market in [('0', 'KOSPI')]:
-            url = f'https://finance.naver.com/sise/sise_quant.nhn?sosok={sosok}&tp_cd={tp_cd}'
-            try:
-                r = requests.get(url, headers=HDR, timeout=12)
-                r.encoding = 'euc-kr'
-                print(f"  Naver {label} ({market}): status={r.status_code} len={len(r.text)}", file=sys.stderr)
+    # 외국인 순매수잔고 상위 (KOSPI)
+    try:
+        entries = scrape_naver_invest(
+            'https://finance.naver.com/sise/frgn_invest.nhn?sosok=0', '외국인')
+        if entries:
+            inv_result['외국인'] = {'buy': entries[:10], 'sell': []}
+    except Exception as e:
+        print(f"  외국인 scrape 오류: {e}", file=sys.stderr)
 
-                soup = BeautifulSoup(r.text, 'lxml')
-                table = soup.find('table', class_='type_2')
-                if not table:
-                    print(f"  Naver {label}: 테이블 없음", file=sys.stderr)
-                    continue
-
-                rows = table.find_all('tr')
-                entries = []
-                for row in rows:
-                    cols = row.find_all('td')
-                    if len(cols) < 7:
-                        continue
-                    a_tag = row.find('a', href=lambda h: h and 'code=' in h)
-                    if not a_tag:
-                        continue
-                    href = a_tag.get('href', '')
-                    code = href.split('code=')[-1].strip() if 'code=' in href else ''
-                    name = a_tag.text.strip()
-
-                    # tp_cd=4(외국인순매수)일 때 순매수 수량이 특정 컬럼에 위치
-                    # 컬럼 구조: 종목명|현재가|전일비|등락률|거래대금|외국인비율|[순매수수량]
-                    try:
-                        # 마지막에서 두 번째 td가 순매수 관련값인 경우가 많음
-                        amt_text = cols[-2].text.strip().replace(',', '').replace('+', '').replace('-', '')
-                        amount = int(amt_text) if amt_text.isdigit() else 0
-                    except:
-                        amount = 0
-
-                    if name and code:
-                        entries.append({'code': code, 'name': name, 'amount': amount})
-
-                print(f"  Naver {label}: {len(entries)} entries", file=sys.stderr)
-                if entries:
-                    # 이미 순서대로 정렬돼 있음 (순매수 상위)
-                    inv_result[label] = {
-                        'buy':  entries[:10],
-                        'sell': [],
-                    }
-            except Exception as e:
-                print(f"  Naver {label} 오류: {e}", file=sys.stderr)
+    # 기관 페이지 시도 (inst_invest.nhn 존재하는 경우)
+    try:
+        r_head = requests.head(
+            'https://finance.naver.com/sise/inst_invest.nhn?sosok=0',
+            headers=HDR, timeout=8, allow_redirects=True)
+        print(f"  inst_invest HEAD: {r_head.status_code}", file=sys.stderr)
+        if r_head.status_code == 200:
+            entries = scrape_naver_invest(
+                'https://finance.naver.com/sise/inst_invest.nhn?sosok=0', '기관')
+            if entries:
+                inv_result['기관'] = {'buy': entries[:10], 'sell': []}
+    except Exception as e:
+        print(f"  기관 페이지 없음: {e}", file=sys.stderr)
 
     if inv_result:
         date_str = dates[0] if dates else ''
         return {'date': date_str, 'data': inv_result, 'note': 'Naver Finance 기준'}
-
-    # 마지막 수단: 외국인 순매수 잔고 상위 (frgn_invest)
-    try:
-        r = requests.get('https://finance.naver.com/sise/frgn_invest.nhn?sosok=0', headers=HDR, timeout=12)
-        r.encoding = 'euc-kr'
-        soup = BeautifulSoup(r.text, 'lxml')
-        table = soup.find('table', class_='type_2')
-        if table:
-            entries = []
-            for row in table.find_all('tr'):
-                cols = row.find_all('td')
-                if len(cols) < 5:
-                    continue
-                a_tag = row.find('a', href=lambda h: h and 'code=' in h)
-                if not a_tag:
-                    continue
-                code = a_tag['href'].split('code=')[-1].strip()
-                name = a_tag.text.strip()
-                try:
-                    amt = int(cols[4].text.strip().replace(',', ''))
-                except:
-                    amt = 0
-                if name:
-                    entries.append({'code': code, 'name': name, 'amount': amt})
-            if entries:
-                date_str = dates[0] if dates else ''
-                return {
-                    'date': date_str,
-                    'note': '외국인 순매수잔고 기준',
-                    'data': {'외국인': {'buy': entries[:10], 'sell': []}},
-                }
-    except Exception as e:
-        print(f"  Naver frgn_invest 오류: {e}", file=sys.stderr)
 
     return None
 
