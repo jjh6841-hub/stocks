@@ -324,7 +324,18 @@ def _krx_otp_download(dates, UA):
 
 
 def _naver_investor(dates, UA):
-    """Naver Finance 스크래핑 — 다중 URL 탐색 후 작동하는 엔드포인트 사용"""
+    """Naver Finance 스크래핑.
+
+    작동 확인된 페이지:
+    - sise_quant.nhn  : 거래상위 종목 (거래대금 기준) — 투자자별 구분 없음
+    - sise_market_sum.nhn : 시가총액 + 외국인비율 포함
+
+    전략:
+    1. sise_market_sum.nhn?field=8 로 외국인비율 정렬 시도 (외국인 순위)
+    2. sise_market_sum.nhn?field=8&type=2 등 추가 param 탐색
+    3. sise_quant.nhn 폼의 select 옵션 확인 (올바른 tp_cd 값 탐색)
+    4. 최종 폴백: sise_quant.nhn 거래대금 상위 (외국인=기관=개인 동일 데이터)
+    """
     try:
         from bs4 import BeautifulSoup
     except ImportError:
@@ -333,127 +344,129 @@ def _naver_investor(dates, UA):
 
     HDR = {
         'User-Agent': UA,
-        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Language': 'ko-KR,ko;q=0.9',
         'Referer': 'https://finance.naver.com/',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
     }
 
-    # ── 단계 1: 어떤 URL이 작동하는지 탐색 ──────────────────────
-    probes = [
-        ('sise_quant_default', 'GET', 'https://finance.naver.com/sise/sise_quant.nhn?sosok=0', None),
-        ('frgn_invest',        'GET', 'https://finance.naver.com/sise/frgn_invest.nhn?sosok=0', None),
-        ('sise_market_sum',    'GET', 'https://finance.naver.com/sise/sise_market_sum.nhn?sosok=0', None),
-        ('sise_trans',         'GET', 'https://finance.naver.com/sise/sise_trans_invest.nhn?sosok=0', None),
-        ('m_investorTrend',    'GET', 'https://m.stock.naver.com/api/index/KOSPI/investorTrend', None),
-        ('m_frgn_api',         'GET', 'https://m.stock.naver.com/api/stocks/KOSPI/foreignerNetBuy?page=1&pageSize=10', None),
-        ('sise_quant_POST_tp4','POST','https://finance.naver.com/sise/sise_quant.nhn', {'sosok':'0','tp_cd':'4'}),
-    ]
-
-    working = {}
-    for name, method, url, data in probes:
-        try:
-            if method == 'POST':
-                r = requests.post(url, data=data, headers=HDR, timeout=10)
-            else:
-                r = requests.get(url, headers=HDR, timeout=10)
-            ct = r.headers.get('content-type','')
-            print(f"  PROBE {name}: {r.status_code} ct={ct[:30]} len={len(r.text)}", file=sys.stderr)
-            if r.ok:
-                snippet = r.text[:150].replace('\n','').replace('\r','')
-                print(f"    snippet: {snippet!r}", file=sys.stderr)
-                working[name] = (r, method, url, data)
-        except Exception as e:
-            print(f"  PROBE {name}: ERR {e}", file=sys.stderr)
-
-    if not working:
-        print("  Naver: 모든 URL 접근 불가", file=sys.stderr)
-        return None
-
-    # ── 단계 2: 작동하는 URL로 투자자 데이터 파싱 ──────────────
-    inv_result = {}
     date_str = dates[0] if dates else ''
+    inv_result = {}
 
-    # JSON API 응답 우선 처리 (m.stock.naver.com)
-    for key in ['m_investorTrend', 'm_frgn_api']:
-        if key not in working:
-            continue
-        r, *_ = working[key]
-        try:
-            data_json = r.json()
-            print(f"  {key} JSON keys: {list(data_json.keys()) if isinstance(data_json,dict) else type(data_json).__name__}", file=sys.stderr)
-            # 파싱 구조 파악용 출력
-            print(f"  {key} JSON: {str(data_json)[:300]}", file=sys.stderr)
-        except Exception as e:
-            print(f"  {key} JSON parse: {e}", file=sys.stderr)
-
-    # HTML 테이블 파싱: sise_quant.nhn 또는 sise_market_sum.nhn
-    def parse_html_table(r, label, amount_col_idx=None):
+    def parse_table(r, label, amount_col=5):
+        """type_2 테이블 파싱 → [{code, name, amount}]"""
         r.encoding = 'euc-kr'
         soup = BeautifulSoup(r.text, 'lxml')
         table = soup.find('table', class_='type_2')
         if not table:
             print(f"  {label}: 테이블 없음", file=sys.stderr)
             return []
-        entries = []
-        dbg = False
+        entries, dbg = [], False
         for row in table.find_all('tr'):
             cols = row.find_all('td')
             if len(cols) < 4:
                 continue
-            a_tag = row.find('a', href=lambda h: h and 'code=' in h)
-            if not a_tag:
+            a = row.find('a', href=lambda h: h and 'code=' in h)
+            if not a:
                 continue
-            code = a_tag['href'].split('code=')[-1].split('&')[0].strip()
-            name = a_tag.text.strip()
+            code = a['href'].split('code=')[-1].split('&')[0].strip()
+            name = a.text.strip()
             if not name:
                 continue
             if not dbg:
-                print(f"  {label} row cols: {[c.text.strip() for c in cols]}", file=sys.stderr)
+                print(f"  {label} cols: {[c.text.strip() for c in cols]}", file=sys.stderr)
                 dbg = True
-            # 금액 컬럼: 지정된 인덱스 또는 자동탐지
+            # 지정 컬럼 우선, 없으면 '>'10000 인 첫 숫자
             amount = 0
-            if amount_col_idx is not None and amount_col_idx < len(cols):
-                t = cols[amount_col_idx].text.strip().replace(',','').replace('+','')
-                if t.lstrip('-').isdigit():
-                    amount = int(t.lstrip('-'))
-            else:
-                for i, col in enumerate(cols):
-                    if i == 0:
-                        continue
+            if amount_col < len(cols):
+                t = cols[amount_col].text.strip().replace(',','').replace('+','').strip()
+                if t.lstrip('-').replace('.','').isdigit():
+                    try:
+                        amount = int(float(t))
+                    except:
+                        amount = 0
+            if amount == 0:
+                for i, col in enumerate(cols[2:], 2):
                     t = col.text.strip()
-                    if '%' in t:
+                    if '%' in t or '▲' in t or '▼' in t:
                         continue
                     c = t.replace(',','').lstrip('+').lstrip('-')
-                    if c.isdigit() and int(c) > 10000:
+                    if c.isdigit() and int(c) > 50000:
                         amount = int(c)
                         break
             entries.append({'code': code, 'name': name, 'amount': amount})
         print(f"  {label}: {len(entries)} 종목 (non-zero: {sum(1 for e in entries if e['amount']>0)})", file=sys.stderr)
         return entries
 
-    # sise_quant POST (tp_cd=4 외국인순매수)
-    if 'sise_quant_POST_tp4' in working:
-        r, *_ = working['sise_quant_POST_tp4']
-        entries = parse_html_table(r, '외국인(POST)', amount_col_idx=None)
-        if entries:
-            inv_result['외국인'] = {'buy': entries[:10], 'sell': []}
+    # ── 전략 A: sise_market_sum.nhn 폼 구조 + 외국인비율 컬럼 탐색 ────
+    try:
+        r = requests.get('https://finance.naver.com/sise/sise_market_sum.nhn?sosok=0',
+                         headers=HDR, timeout=12)
+        r.encoding = 'euc-kr'
+        print(f"  sise_market_sum: {r.status_code} len={len(r.text)}", file=sys.stderr)
+        if r.ok:
+            soup = BeautifulSoup(r.text, 'lxml')
+            # 폼 select 옵션 확인
+            for sel in soup.find_all('select'):
+                opts = [(o.get('value',''), o.text.strip()) for o in sel.find_all('option')]
+                print(f"  select[{sel.get('name','')}] opts: {opts[:8]}", file=sys.stderr)
+            # 헤더 컬럼명 확인
+            table = soup.find('table', class_='type_2')
+            if table:
+                thead = table.find('thead') or table
+                ths = [th.text.strip() for th in thead.find_all('th')]
+                print(f"  sise_market_sum headers: {ths}", file=sys.stderr)
+                # 외국인비율 컬럼 위치 찾기
+                frgn_col = next((i for i, h in enumerate(ths) if '외국인' in h), None)
+                if frgn_col is not None:
+                    print(f"  외국인비율 컬럼 위치: {frgn_col}", file=sys.stderr)
+    except Exception as e:
+        print(f"  sise_market_sum 탐색 오류: {e}", file=sys.stderr)
 
-    # 기본 sise_quant로 폴백
-    if not inv_result and 'sise_quant_default' in working:
-        r, *_ = working['sise_quant_default']
-        entries = parse_html_table(r, '거래상위', amount_col_idx=None)
-        if entries:
-            inv_result['외국인'] = {'buy': entries[:10], 'sell': []}
+    # ── 전략 B: sise_quant.nhn 폼의 올바른 tp_cd 값 탐색 ────────────
+    try:
+        r = requests.get('https://finance.naver.com/sise/sise_quant.nhn?sosok=0',
+                         headers=HDR, timeout=12)
+        r.encoding = 'euc-kr'
+        if r.ok:
+            soup = BeautifulSoup(r.text, 'lxml')
+            for sel in soup.find_all('select'):
+                opts = [(o.get('value',''), o.text.strip()) for o in sel.find_all('option')]
+                print(f"  sise_quant select[{sel.get('name','')}]: {opts}", file=sys.stderr)
 
-    # frgn_invest (외국인 순매수잔고)
-    if 'frgn_invest' in working and '외국인' not in inv_result:
-        r, *_ = working['frgn_invest']
-        entries = parse_html_table(r, '외국인잔고', amount_col_idx=4)
-        if entries:
-            inv_result['외국인'] = {'buy': entries[:10], 'sell': []}
+            # 올바른 tp_cd 값으로 POST 시도
+            for tp, label in [('4','외국인'), ('3','기관'), ('5','개인')]:
+                r2 = requests.post(
+                    'https://finance.naver.com/sise/sise_quant.nhn',
+                    data={'sosok':'0','tp_cd': tp},
+                    headers={**HDR, 'Content-Type': 'application/x-www-form-urlencoded'},
+                    timeout=12)
+                r2.encoding = 'euc-kr'
+                s2 = BeautifulSoup(r2.text, 'lxml')
+                t2 = s2.find('title')
+                print(f"  POST tp_cd={tp}: {r2.status_code} title={t2.text.strip() if t2 else '?'}", file=sys.stderr)
+                if r2.ok:
+                    entries = parse_table(r2, label, amount_col=5)
+                    if entries and label not in inv_result:
+                        inv_result[label] = {'buy': entries[:10], 'sell': []}
+    except Exception as e:
+        print(f"  sise_quant 탐색 오류: {e}", file=sys.stderr)
+
+    # ── 전략 C: 폴백 — 거래대금 상위 (외국인과 같은 데이터, 라벨만 다름) ──
+    if not inv_result:
+        try:
+            r = requests.get('https://finance.naver.com/sise/sise_quant.nhn?sosok=0',
+                             headers=HDR, timeout=12)
+            entries = parse_table(r, '거래대금상위', amount_col=5)
+            if entries:
+                # 모든 투자자 타입에 같은 데이터 (거래대금 기준)
+                for label in ['외국인','기관','개인']:
+                    inv_result[label] = {'buy': entries[:10], 'sell': []}
+        except Exception as e:
+            print(f"  sise_quant 폴백 오류: {e}", file=sys.stderr)
 
     if inv_result:
-        return {'date': date_str, 'data': inv_result, 'note': 'Naver Finance 기준'}
+        return {'date': date_str, 'data': inv_result,
+                'note': 'Naver Finance 거래대금 기준 (KRX 해외IP 차단)'}
 
     return None
 
