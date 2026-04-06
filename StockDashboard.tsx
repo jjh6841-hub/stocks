@@ -298,27 +298,27 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
         {weeks.map((wk,wi)=>(
           <div key={wi} style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'3px'}}>
             {wk.map((day,di)=>{
-              if(!day) return <div key={di} style={{height:'78px',background:'rgba(6,13,26,.6)',borderRadius:'6px'}}/>;
+              if(!day) return <div key={di} style={{minHeight:'110px',background:'rgba(6,13,26,.6)',borderRadius:'6px'}}/>;
               const ds=`${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
               const isT=ds===today;
               const dayEvs=events.filter(e=>e.date===ds);
               const isPast=ds<today;
               return (
                 <div key={di} style={{
-                  height:'78px',overflow:'hidden',
+                  minHeight:'110px',
                   background:isT?'rgba(64,196,255,.08)':isPast?'rgba(10,22,40,.5)':'#0a1628',
-                  borderRadius:'6px',padding:'4px',
+                  borderRadius:'6px',padding:'6px',
                   border:isT?'1px solid #40c4ff66':'1px solid #1a2535',
                 }}>
                   <div style={{
-                    width:'24px',height:'24px',borderRadius:'50%',
+                    width:'26px',height:'26px',borderRadius:'50%',
                     background:isT?'#40c4ff':'transparent',
                     display:'flex',alignItems:'center',justifyContent:'center',
-                    marginBottom:'3px',
+                    marginBottom:'4px',
                     fontSize:'14px',fontWeight:isT?'bold':'normal',
                     color:isT?'#060d1a':di===0?'#ff5252':di===6?'#5c9eff':isPast?'#37474f':'#90a4ae',
                   }}>{day}</div>
-                  <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
+                  <div style={{display:'flex',flexDirection:'column',gap:'3px'}}>
                     {dayEvs.map(ev=>{
                       const ec=EVT_COLOR[ev.type]??'#546e7a';
                       return (
@@ -326,10 +326,9 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
                           onClick={()=>setSel(sel?.id===ev.id?null:ev)}
                           style={{
                             background:ec+'25',borderLeft:`2px solid ${ec}`,
-                            borderRadius:'2px',padding:'2px 4px',
-                            fontSize:'11px',color:ec,
-                            overflow:'hidden',whiteSpace:'nowrap',textOverflow:'ellipsis',
-                            cursor:'pointer',lineHeight:'1.3',
+                            borderRadius:'3px',padding:'3px 5px',
+                            fontSize:'12px',color:ec,
+                            cursor:'pointer',lineHeight:'1.4',wordBreak:'keep-all',
                           }}>
                           {ev.imp==='high'?'●':'○'} {ev.title}
                         </div>
@@ -614,7 +613,7 @@ export default function StockDashboard() {
   const [sparks,setSparks]= useState<Record<string,number[]>>({});
   const [loading,setLoad] = useState(true);
   const [stale,setStale]  = useState(false);
-  const [tab,setTab]      = useState<'news'|'cal'|'coin'|'forex'|'com'>('news');
+  const [tab,setTab]      = useState<'news'|'coin'|'forex'|'com'>('news');
   const [nf,setNF]        = useState('all');
   const [alerts,setAlerts]= useState<{id:number;text:string;type:string}[]>([]);
 
@@ -758,7 +757,7 @@ export default function StockDashboard() {
         )}
 
         {/* ── 메인: 좌(지수+섹터+투자자+분석) / 우(탭패널) ────────────── */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 420px',gap:'12px',alignItems:'start'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 500px',gap:'12px',alignItems:'start'}}>
 
           {/* 좌열 */}
           <div>
@@ -815,7 +814,6 @@ export default function StockDashboard() {
             {/* 탭 바 */}
             <div style={{display:'flex',borderBottom:'1px solid #1a2535',background:'#060d1a',overflowX:'auto'}}>
               <button style={tabS('news')}  onClick={()=>setTab('news')}>📰 뉴스</button>
-              <button style={tabS('cal')}   onClick={()=>setTab('cal')}>📅 캘린더</button>
               <button style={tabS('coin')}  onClick={()=>setTab('coin')}>₿ 코인</button>
               <button style={tabS('forex')} onClick={()=>setTab('forex')}>💱 환율</button>
               <button style={tabS('com')}   onClick={()=>setTab('com')}>🪙 원자재</button>
@@ -858,9 +856,6 @@ export default function StockDashboard() {
                   </div>
                 </div>
               )}
-
-              {/* 캘린더 */}
-              {tab==='cal'&&<GoogleCalendar events={CALENDAR} today={today}/>}
 
               {/* 코인 */}
               {tab==='coin'&&(
@@ -926,6 +921,12 @@ export default function StockDashboard() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* ── 전체 너비 캘린더 ──────────────────────────────────── */}
+        <div style={{marginTop:'12px'}}>
+          <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>📅 경제 캘린더</div>
+          <GoogleCalendar events={CALENDAR} today={today}/>
         </div>
 
         <div style={{borderTop:'1px solid #1a2535',marginTop:'12px',paddingTop:'10px',display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#37474f',flexWrap:'wrap',gap:'6px'}}>
