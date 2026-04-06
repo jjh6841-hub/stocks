@@ -31,7 +31,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install Python dependencies
-        run: pip install yfinance requests feedparser deep-translator pykrx
+        run: pip install yfinance requests feedparser deep-translator pykrx beautifulsoup4 lxml
 
       - name: Fetch market data
         run: python scripts/fetch_data.py

@@ -191,102 +191,244 @@ def fetch_rss(url, source, n=7):
 
 
 def fetch_investor_trading():
-    """KRX 공개 API 직접 호출 (pykrx 우회 — 해외 IP 대응)"""
+    """투자자별 순매수/순매도 TOP10 — KRX OTP → Naver Finance 순으로 시도"""
 
-    # KST 기준 최근 평일 5개
+    UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+          'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36')
+
+    # KST 기준 최근 평일 3개
     kst_now = datetime.now(timezone.utc) + timedelta(hours=9)
     candidate_dates = []
     for delta in range(1, 14):
         dt = kst_now - timedelta(days=delta)
         if dt.weekday() < 5:
             candidate_dates.append(dt.strftime('%Y%m%d'))
-        if len(candidate_dates) >= 5:
+        if len(candidate_dates) >= 3:
             break
 
-    # KRX MDCSTAT02401: 투자자별 순매수 상위종목
-    # invstTpCd 코드: 외국인합계=9000, 기관합계=9100, 연기금등=9200, 개인=1000
-    KRX_URL = 'http://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd'
-    KRX_BASE = 'http://data.krx.co.kr'
-    UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
-
-    # 세션 생성 + 메인 페이지 방문 (JSESSIONID 쿠키 획득)
-    sess = requests.Session()
-    sess.headers.update({'User-Agent': UA})
+    # ── 전략 1: KRX OTP 파일 다운로드 ─────────────────────────
     try:
-        sess.get(f'{KRX_BASE}/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020302',
-                 timeout=15)
-        print(f"  KRX 세션 쿠키: {dict(sess.cookies)}", file=sys.stderr)
-    except Exception as e:
-        print(f"  KRX 세션 오류: {e}", file=sys.stderr)
-
-    KRX_HEADERS = {
-        'User-Agent': UA,
-        'Referer':    f'{KRX_BASE}/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020302',
-        'Origin':     KRX_BASE,
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json, text/javascript, */*; q=0.01',
-    }
-
-    investor_codes = {
-        '외국인': '9000',
-        '기관':   '9100',
-        '연기금': '9200',
-        '개인':   '1000',
-    }
-
-    def _krx_fetch(date_str, inv_code):
-        payload = {
-            'bld':          'dbms/MDC/STAT/standard/MDCSTAT02401',
-            'locale':       'ko_KR',
-            'mktId':        'STK',
-            'invstTpCd':    inv_code,
-            'strtDd':       date_str,
-            'endDd':        date_str,
-            'share':        '1',
-            'money':        '1',
-            'csvxls_isNo':  'false',
-        }
-        r = sess.post(KRX_URL, data=payload, headers=KRX_HEADERS, timeout=20)
-        print(f"      HTTP {r.status_code} len={len(r.text)} preview={r.text[:200]}", file=sys.stderr)
-        if not r.ok:
-            return None
-        items = r.json().get('output', [])
-        if not items:
-            return None
-        # 필드명: ISU_ABBRV=종목명, ISU_CD=코드, NETBUY_TRDVAL=순매수거래대금
-        def to_int(v):
-            try: return int(str(v).replace(',',''))
-            except: return 0
-        rows = [{'code': it.get('ISU_CD',''), 'name': it.get('ISU_ABBRV',''),
-                 'val': to_int(it.get('NETBUY_TRDVAL', 0))} for it in items]
-        rows.sort(key=lambda x: x['val'], reverse=True)
-        return {
-            'buy':  [{'code':r['code'],'name':r['name'],'amount': r['val']}
-                      for r in rows if r['val']>0][:10],
-            'sell': [{'code':r['code'],'name':r['name'],'amount': abs(r['val'])}
-                      for r in rows if r['val']<0][-10:][::-1],
-        }
-
-    for date_str in candidate_dates:
-        print(f"  KRX 투자자 시도: {date_str}", file=sys.stderr)
-        result = {}
-        for label, code in investor_codes.items():
-            try:
-                entry = _krx_fetch(date_str, code)
-                if entry and (entry['buy'] or entry['sell']):
-                    result[label] = entry
-                    print(f"    ✓ {label}: buy={len(entry['buy'])}, sell={len(entry['sell'])}", file=sys.stderr)
-                else:
-                    print(f"    - {label}: empty", file=sys.stderr)
-            except Exception as e:
-                print(f"    ✗ {label}: {e}", file=sys.stderr)
-
+        result = _krx_otp_download(candidate_dates, UA)
         if result:
-            return {'date': date_str, 'data': result}
+            print(f"  ✓ KRX OTP 성공: {result.get('date')}", file=sys.stderr)
+            return result
+    except Exception as e:
+        print(f"  KRX OTP 전략 오류: {e}", file=sys.stderr)
 
-    print("  KRX 투자자 거래: 모든 후보일 실패", file=sys.stderr)
+    # ── 전략 2: Naver Finance 스크래핑 ───────────────────────
+    try:
+        result = _naver_investor(candidate_dates, UA)
+        if result:
+            print(f"  ✓ Naver 스크래핑 성공", file=sys.stderr)
+            return result
+    except Exception as e:
+        print(f"  Naver 전략 오류: {e}", file=sys.stderr)
+
+    print("  투자자 거래: 모든 소스 실패", file=sys.stderr)
     return {}
+
+
+def _krx_otp_download(dates, UA):
+    """KRX OTP 시스템: GenerateOTP → file.krx.co.kr/download.cmd"""
+    import io, csv as csvmod
+    OTP_URL = 'http://data.krx.co.kr/contents/COM/GenerateOTP.cmd'
+    DL_URL  = 'http://file.krx.co.kr/download.cmd'
+    HDR = {
+        'User-Agent': UA,
+        'Referer': 'http://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020302',
+    }
+    inv_codes = {'외국인':'9000','기관':'9100','연기금':'9200','개인':'1000'}
+
+    for date_str in dates:
+        print(f"  KRX OTP 시도: {date_str}", file=sys.stderr)
+        inv_result = {}
+
+        for label, code in inv_codes.items():
+            otp_params = {
+                'name': 'fileDown',
+                'url':  'dbms/MDC/STAT/standard/MDCSTAT02401',
+                'locale':       'ko_KR',
+                'mktId':        'STK',
+                'invstTpCd':    code,
+                'strtDd':       date_str,
+                'endDd':        date_str,
+                'share':        '1',
+                'money':        '1',
+                'csvxls_isNo':  'true',
+            }
+            try:
+                r_otp = requests.post(OTP_URL, data=otp_params, headers=HDR, timeout=15)
+                otp = r_otp.text.strip()
+                print(f"    OTP {label}: status={r_otp.status_code} val={otp[:40]!r}", file=sys.stderr)
+
+                if 'LOGOUT' in otp or len(otp) < 10:
+                    print(f"    → geo-blocked, 전략1 중단", file=sys.stderr)
+                    return None  # 해외 IP 차단 → 다음 전략으로
+
+                r_dl = requests.post(DL_URL, data={'code': otp}, headers=HDR, timeout=20)
+                print(f"    DL {label}: status={r_dl.status_code} len={len(r_dl.content)}", file=sys.stderr)
+
+                if not r_dl.ok or len(r_dl.content) < 100:
+                    continue
+
+                # CSV 파싱 (EUC-KR 인코딩)
+                try:
+                    text = r_dl.content.decode('euc-kr', errors='replace')
+                    reader = csvmod.DictReader(io.StringIO(text))
+                    rows = list(reader)
+                    if not rows:
+                        continue
+                    keys = list(rows[0].keys())
+                    print(f"    CSV {label}: {len(rows)} rows | cols={keys[:6]}", file=sys.stderr)
+
+                    # 컬럼 자동 탐지
+                    def find_col(keywords, row_keys):
+                        for kw in keywords:
+                            for k in row_keys:
+                                if kw in k:
+                                    return k
+                        return None
+
+                    net_col  = find_col(['순매수거래대금','순매수금액','순매수'], keys)
+                    name_col = find_col(['종목명','ISU_ABBRV','종목 명'], keys)
+                    code_col = find_col(['단축코드','종목코드','ISU_SRT_CD','ISU_CD'], keys)
+
+                    if not (net_col and name_col):
+                        print(f"    컬럼 탐지 실패: net={net_col} name={name_col}", file=sys.stderr)
+                        continue
+
+                    def to_int(v):
+                        try: return int(str(v).replace(',','').strip())
+                        except: return 0
+
+                    parsed = [{'code': r.get(code_col,''), 'name': r.get(name_col,'').strip(),
+                               'val': to_int(r.get(net_col, 0))} for r in rows if r.get(name_col)]
+                    parsed.sort(key=lambda x: x['val'], reverse=True)
+                    inv_result[label] = {
+                        'buy':  [{'code': x['code'], 'name': x['name'], 'amount':  x['val']}
+                                 for x in parsed if x['val'] > 0][:10],
+                        'sell': [{'code': x['code'], 'name': x['name'], 'amount': -x['val']}
+                                 for x in reversed(parsed) if x['val'] < 0][:10],
+                    }
+                    print(f"    ✓ {label}: buy={len(inv_result[label]['buy'])} sell={len(inv_result[label]['sell'])}", file=sys.stderr)
+                except Exception as e:
+                    print(f"    CSV 파싱 오류 {label}: {e}", file=sys.stderr)
+
+            except Exception as e:
+                print(f"    OTP 요청 오류 {label}: {e}", file=sys.stderr)
+
+        if inv_result:
+            return {'date': date_str, 'data': inv_result}
+
+    return None
+
+
+def _naver_investor(dates, UA):
+    """Naver Finance 스크래핑 — 외국인/기관 순매수 상위"""
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        print("  beautifulsoup4 없음 — Naver 스크래핑 불가", file=sys.stderr)
+        return None
+
+    HDR = {
+        'User-Agent': UA,
+        'Accept-Language': 'ko-KR,ko;q=0.9',
+        'Referer': 'https://finance.naver.com/',
+    }
+
+    # Naver Finance 투자자별 순매수 페이지
+    # tp_cd: 4=외국인순매수, 3=기관순매수, 5=개인순매수  (sosok: 0=KOSPI, 1=KOSDAQ)
+    tp_map = {'외국인': '4', '기관': '3', '개인': '5'}
+    inv_result = {}
+
+    for label, tp_cd in tp_map.items():
+        for sosok, market in [('0', 'KOSPI')]:
+            url = f'https://finance.naver.com/sise/sise_quant.nhn?sosok={sosok}&tp_cd={tp_cd}'
+            try:
+                r = requests.get(url, headers=HDR, timeout=12)
+                r.encoding = 'euc-kr'
+                print(f"  Naver {label} ({market}): status={r.status_code} len={len(r.text)}", file=sys.stderr)
+
+                soup = BeautifulSoup(r.text, 'lxml')
+                table = soup.find('table', class_='type_2')
+                if not table:
+                    print(f"  Naver {label}: 테이블 없음", file=sys.stderr)
+                    continue
+
+                rows = table.find_all('tr')
+                entries = []
+                for row in rows:
+                    cols = row.find_all('td')
+                    if len(cols) < 7:
+                        continue
+                    a_tag = row.find('a', href=lambda h: h and 'code=' in h)
+                    if not a_tag:
+                        continue
+                    href = a_tag.get('href', '')
+                    code = href.split('code=')[-1].strip() if 'code=' in href else ''
+                    name = a_tag.text.strip()
+
+                    # tp_cd=4(외국인순매수)일 때 순매수 수량이 특정 컬럼에 위치
+                    # 컬럼 구조: 종목명|현재가|전일비|등락률|거래대금|외국인비율|[순매수수량]
+                    try:
+                        # 마지막에서 두 번째 td가 순매수 관련값인 경우가 많음
+                        amt_text = cols[-2].text.strip().replace(',', '').replace('+', '').replace('-', '')
+                        amount = int(amt_text) if amt_text.isdigit() else 0
+                    except:
+                        amount = 0
+
+                    if name and code:
+                        entries.append({'code': code, 'name': name, 'amount': amount})
+
+                print(f"  Naver {label}: {len(entries)} entries", file=sys.stderr)
+                if entries:
+                    # 이미 순서대로 정렬돼 있음 (순매수 상위)
+                    inv_result[label] = {
+                        'buy':  entries[:10],
+                        'sell': [],
+                    }
+            except Exception as e:
+                print(f"  Naver {label} 오류: {e}", file=sys.stderr)
+
+    if inv_result:
+        date_str = dates[0] if dates else ''
+        return {'date': date_str, 'data': inv_result, 'note': 'Naver Finance 기준'}
+
+    # 마지막 수단: 외국인 순매수 잔고 상위 (frgn_invest)
+    try:
+        r = requests.get('https://finance.naver.com/sise/frgn_invest.nhn?sosok=0', headers=HDR, timeout=12)
+        r.encoding = 'euc-kr'
+        soup = BeautifulSoup(r.text, 'lxml')
+        table = soup.find('table', class_='type_2')
+        if table:
+            entries = []
+            for row in table.find_all('tr'):
+                cols = row.find_all('td')
+                if len(cols) < 5:
+                    continue
+                a_tag = row.find('a', href=lambda h: h and 'code=' in h)
+                if not a_tag:
+                    continue
+                code = a_tag['href'].split('code=')[-1].strip()
+                name = a_tag.text.strip()
+                try:
+                    amt = int(cols[4].text.strip().replace(',', ''))
+                except:
+                    amt = 0
+                if name:
+                    entries.append({'code': code, 'name': name, 'amount': amt})
+            if entries:
+                date_str = dates[0] if dates else ''
+                return {
+                    'date': date_str,
+                    'note': '외국인 순매수잔고 기준',
+                    'data': {'외국인': {'buy': entries[:10], 'sell': []}},
+                }
+    except Exception as e:
+        print(f"  Naver frgn_invest 오류: {e}", file=sys.stderr)
+
+    return None
 
 
 def main():
