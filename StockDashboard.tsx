@@ -731,21 +731,6 @@ export default function StockDashboard() {
         </div>
       </div>
 
-      {/* TICKER */}
-      {!loading&&Object.keys(quotes).length>0&&(
-        <div style={{background:'#040a14',borderBottom:'1px solid #1a2535',padding:'5px 0',overflow:'hidden',whiteSpace:'nowrap'}}>
-          <div style={{display:'inline-block',animation:'ticker 60s linear infinite'}}>
-            {[...IDX_META,...IDX_META].map((m,i)=>{
-              const q=quotes[m.yf];if(!q)return null;
-              return <span key={i} style={{marginRight:'36px',fontSize:'13px'}}><span style={{color:'#546e7a'}}>{m.sym} </span><span style={{color:'#eceff1'}}>{fmt(q.price)} </span><span style={{color:clr(q.changePct)}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</span></span>;
-            })}
-            {[...COM_META,...COM_META].map((m,i)=>{
-              const q=quotes[m.yf];if(!q)return null;
-              return <span key={'c'+i} style={{marginRight:'36px',fontSize:'13px'}}><span style={{color:'#546e7a'}}>{m.sym} </span><span style={{color:'#eceff1'}}>${fmt(q.price,['NG=F','HG=F'].includes(m.yf)?3:2)} </span><span style={{color:clr(q.changePct)}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</span></span>;
-            })}
-          </div>
-        </div>
-      )}
 
       <div style={{padding:'12px 16px',maxWidth:'1900px',margin:'0 auto'}}>
 
@@ -756,68 +741,69 @@ export default function StockDashboard() {
           </div>
         )}
 
-        {/* ── 메인: 좌(지수+섹터+투자자+분석) / 우(탭패널) ────────────── */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 650px',gap:'12px',alignItems:'start'}}>
+        {/* ── 상단: 주요지수 + 섹터ETF 같은 라인 ────────────────────── */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'12px',alignItems:'start'}}>
+          {/* 주요 지수 */}
+          <div>
+            <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>
+              📊 주요 지수 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 10분 갱신</span>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'6px'}}>
+              {IDX_META.map(m=>{
+                const q=quotes[m.yf]; const c=clr(q?.changePct??0);
+                const p52=q&&q.high52w&&q.low52w&&q.high52w!==q.low52w
+                  ?((q.price-q.low52w)/(q.high52w-q.low52w))*100:null;
+                const fromATH=q?((m.ath-q.price)/m.ath*100):null;
+                return (
+                  <div key={m.yf} style={{background:'#0d1b2e',border:'1px solid #1a3050',borderLeft:`3px solid ${c}`,borderRadius:'6px',padding:'7px 8px'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}}>
+                      <span style={{fontSize:'10px',color:'#546e7a',fontWeight:'600',letterSpacing:'1px'}}>{m.sym}</span>
+                      {loading||!q?<Spinner s={12}/>:
+                        <span style={{fontSize:'11px',fontWeight:'700',color:c}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</span>}
+                    </div>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}}>
+                      <span style={{fontSize:'14px',fontWeight:'700',color:'#eceff1'}}>{loading||!q?'—':fmt(q.price)}</span>
+                      {fromATH!=null&&<span style={{fontSize:'9px',color:'#37474f'}}>ATH -{fromATH.toFixed(1)}%</span>}
+                    </div>
+                    {p52!=null&&(
+                      <div style={{height:'3px',background:'#1a2535',borderRadius:'2px'}}>
+                        <div style={{height:'100%',width:`${Math.min(100,p52)}%`,background:p52<20?'#00e676':p52>80?'#ff5252':'#40c4ff',borderRadius:'2px'}}/>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          {/* 섹터 ETF & 종목 */}
+          <div>
+            <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>🔥 섹터 ETF & 종목 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 실제 등락률</span></div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'6px'}}>
+              {SECTOR_DEF.map(d=><SectorCard key={d.yf} def={d} quotes={quotes} loading={loading}/>)}
+            </div>
+          </div>
+        </div>
+
+        {/* ── 메인: 좌(투자자+분석+캘린더) / 우(탭패널) ─────────────── */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 500px',gap:'12px',alignItems:'start'}}>
 
           {/* 좌열 */}
           <div>
-            {/* 주요 지수 compact */}
-            <div style={{marginBottom:'10px'}}>
-              <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>
-                📊 주요 지수 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 10분 갱신</span>
-              </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'7px'}}>
-                {IDX_META.map(m=>{
-                  const q=quotes[m.yf]; const c=clr(q?.changePct??0);
-                  const p52=q&&q.high52w&&q.low52w&&q.high52w!==q.low52w
-                    ?((q.price-q.low52w)/(q.high52w-q.low52w))*100:null;
-                  const fromATH=q?((m.ath-q.price)/m.ath*100):null;
-                  return (
-                    <div key={m.yf} style={{background:'#0d1b2e',border:'1px solid #1a3050',borderLeft:`3px solid ${c}`,borderRadius:'6px',padding:'8px 10px'}}>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'3px'}}>
-                        <span style={{fontSize:'11px',color:'#546e7a',fontWeight:'600',letterSpacing:'1px'}}>{m.sym}</span>
-                        {loading||!q?<Spinner s={12}/>:
-                          <span style={{fontSize:'12px',fontWeight:'700',color:c}}>{q.changePct>=0?'▲':'▼'}{Math.abs(q.changePct).toFixed(2)}%</span>}
-                      </div>
-                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'4px'}}>
-                        <span style={{fontSize:'17px',fontWeight:'700',color:'#eceff1'}}>{loading||!q?'—':fmt(q.price)}</span>
-                        {fromATH!=null&&<span style={{fontSize:'10px',color:'#37474f'}}>ATH -{fromATH.toFixed(1)}%</span>}
-                      </div>
-                      {p52!=null&&(
-                        <div style={{height:'3px',background:'#1a2535',borderRadius:'2px'}}>
-                          <div style={{height:'100%',width:`${Math.min(100,p52)}%`,background:p52<20?'#00e676':p52>80?'#ff5252':'#40c4ff',borderRadius:'2px'}}/>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 섹터 ETF */}
-            <div style={{marginBottom:'10px'}}>
-              <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>🔥 섹터 ETF & 종목 <span style={{color:'#37474f',letterSpacing:'0'}}>· yfinance 실제 등락률</span></div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:'8px'}}>
-                {SECTOR_DEF.map(d=><SectorCard key={d.yf} def={d} quotes={quotes} loading={loading}/>)}
-              </div>
-            </div>
-
             {/* 투자자별 순매수 */}
             <InvestorTradingPanel data={mdata?.investorTrading}/>
 
             {/* 시장 분석 & ETF 추천 */}
             <MarketAnalysis quotes={quotes} fg={fg} loading={loading}/>
-          </div>
 
-          {/* 우열: 캘린더 + 탭패널 */}
-          <div style={{position:'sticky',top:'58px',display:'flex',flexDirection:'column',gap:'10px'}}>
-
-            {/* 캘린더 상시 표시 */}
-            <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'10px'}}>
+            {/* 캘린더 */}
+            <div style={{marginTop:'10px'}}>
+              <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>📅 경제 캘린더</div>
               <GoogleCalendar events={CALENDAR} today={today}/>
             </div>
+          </div>
 
-            {/* 탭패널 */}
+          {/* 우열: 탭패널 */}
+          <div style={{position:'sticky',top:'58px'}}>
             <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',overflow:'hidden'}}>
             {/* 탭 바 */}
             <div style={{display:'flex',borderBottom:'1px solid #1a2535',background:'#060d1a',overflowX:'auto'}}>
@@ -827,7 +813,7 @@ export default function StockDashboard() {
               <button style={tabS('com')}   onClick={()=>setTab('com')}>🪙 원자재</button>
             </div>
 
-            <div style={{padding:'10px',maxHeight:'40vh',overflowY:'auto'}}>
+            <div style={{padding:'10px',maxHeight:'calc(100vh - 130px)',overflowY:'auto'}}>
               {/* 뉴스 */}
               {tab==='news'&&(
                 <div>
@@ -928,9 +914,9 @@ export default function StockDashboard() {
                 </div>
               )}
             </div>
-            </div>{/* 탭패널 닫기 */}
-          </div>{/* 우열 닫기 */}
-        </div>
+            </div>{/* 탭패널 box 닫기 */}
+          </div>{/* 우열 sticky 닫기 */}
+        </div>{/* 메인 2열 그리드 닫기 */}
 
         <div style={{borderTop:'1px solid #1a2535',marginTop:'12px',paddingTop:'10px',display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#37474f',flexWrap:'wrap',gap:'6px'}}>
           <span>⚡ GitHub Actions 10분 갱신 (public repo → Actions 무료·무제한)</span>
