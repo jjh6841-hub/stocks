@@ -191,81 +191,88 @@ def fetch_rss(url, source, n=7):
 
 
 def fetch_investor_trading():
-    if not _HAS_PYKRX:
-        print("pykrx not available — skipping investor trading", file=sys.stderr)
-        return {}
+    """KRX 공개 API 직접 호출 (pykrx 우회 — 해외 IP 대응)"""
 
-    # Use KST (UTC+9) to determine the last trading day
+    # KST 기준 최근 평일 5개
     kst_now = datetime.now(timezone.utc) + timedelta(hours=9)
-
-    # Build a list of up to 5 recent weekdays to try
     candidate_dates = []
-    for delta in range(1, 10):
+    for delta in range(1, 14):
         dt = kst_now - timedelta(days=delta)
-        if dt.weekday() < 5:          # Mon(0)–Fri(4) only
+        if dt.weekday() < 5:
             candidate_dates.append(dt.strftime('%Y%m%d'))
         if len(candidate_dates) >= 5:
             break
 
-    # pykrx investor keys — try multiple variants per type (version differences)
-    investor_map = {
-        '외국인': ['외국인합계', '외국인'],
-        '기관':   ['기관합계',   '기관'],
-        '연기금': ['연기금등',   '연기금'],
-        '개인':   ['개인'],
+    # KRX MDCSTAT02401: 투자자별 순매수 상위종목
+    # invstTpCd 코드: 외국인합계=9000, 기관합계=9100, 연기금등=9200, 개인=1000
+    KRX_URL = 'http://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd'
+    KRX_HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Referer':    'http://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020302',
+        'Origin':     'http://data.krx.co.kr',
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
     }
 
-    def _try_fetch(date_str, inv_key):
-        df = pkstock.get_market_net_purchases_of_equities_by_ticker(
-            date_str, date_str, 'KOSPI', inv_key)
-        if df is None or df.empty:
+    investor_codes = {
+        '외국인': '9000',
+        '기관':   '9100',
+        '연기금': '9200',
+        '개인':   '1000',
+    }
+
+    def _krx_fetch(date_str, inv_code):
+        payload = {
+            'bld':          'dbms/MDC/STAT/standard/MDCSTAT02401',
+            'locale':       'ko_KR',
+            'mktId':        'STK',
+            'invstTpCd':    inv_code,
+            'strtDd':       date_str,
+            'endDd':        date_str,
+            'share':        '1',
+            'money':        '1',
+            'csvxls_isNo':  'false',
+        }
+        r = requests.post(KRX_URL, data=payload, headers=KRX_HEADERS, timeout=20)
+        if not r.ok:
+            print(f"      HTTP {r.status_code}", file=sys.stderr)
             return None
-        print(f"      columns: {list(df.columns)}", file=sys.stderr)
-        # 순매수거래대금 우선, 없으면 순매수거래량으로 fallback
-        col_amt = next((c for c in df.columns if '순매수거래대금' in c), None) \
-               or next((c for c in df.columns if '순매수거래량' in c), None) \
-               or next((c for c in df.columns if '순매수' in c), None)
-        # 종목명이 컬럼에 있거나 인덱스 이름일 수 있음
-        col_name = next((c for c in df.columns if '종목명' in c), None)
-        if col_amt is None:
-            print(f"      순매수 컬럼 없음: {list(df.columns)}", file=sys.stderr)
+        items = r.json().get('output', [])
+        if not items:
             return None
-        buy_top  = df.nlargest(10, col_amt)
-        sell_top = df.nsmallest(10, col_amt)
-        def _name(idx, row):
-            if col_name:
-                return str(row[col_name])
-            # 종목명이 인덱스에 있는 경우 (pykrx 버전에 따라)
-            return str(idx)
+        # 필드명: ISU_ABBRV=종목명, ISU_CD=코드, NETBUY_TRDVAL=순매수거래대금
+        def to_int(v):
+            try: return int(str(v).replace(',',''))
+            except: return 0
+        rows = [{'code': it.get('ISU_CD',''), 'name': it.get('ISU_ABBRV',''),
+                 'val': to_int(it.get('NETBUY_TRDVAL', 0))} for it in items]
+        rows.sort(key=lambda x: x['val'], reverse=True)
         return {
-            'buy':  [{'code': str(idx), 'name': _name(idx, row),
-                       'amount': int(row[col_amt])}
-                      for idx, row in buy_top.iterrows() if row[col_amt] > 0],
-            'sell': [{'code': str(idx), 'name': _name(idx, row),
-                       'amount': abs(int(row[col_amt]))}
-                      for idx, row in sell_top.iterrows() if row[col_amt] < 0],
+            'buy':  [{'code':r['code'],'name':r['name'],'amount': r['val']}
+                      for r in rows if r['val']>0][:10],
+            'sell': [{'code':r['code'],'name':r['name'],'amount': abs(r['val'])}
+                      for r in rows if r['val']<0][-10:][::-1],
         }
 
     for date_str in candidate_dates:
-        print(f"  투자자 거래 시도: {date_str}", file=sys.stderr)
+        print(f"  KRX 투자자 시도: {date_str}", file=sys.stderr)
         result = {}
-        for label, key_candidates in investor_map.items():
-            for inv_key in key_candidates:
-                try:
-                    entry = _try_fetch(date_str, inv_key)
-                    if entry:
-                        result[label] = entry
-                        print(f"    ✓ {label}({inv_key}): buy={len(entry['buy'])}, sell={len(entry['sell'])}", file=sys.stderr)
-                        break  # 이 투자자 유형 성공 → 다음 유형으로
-                    else:
-                        print(f"    - {label}({inv_key}): empty", file=sys.stderr)
-                except Exception as e:
-                    print(f"    ✗ {label}({inv_key}): {e}", file=sys.stderr)
+        for label, code in investor_codes.items():
+            try:
+                entry = _krx_fetch(date_str, code)
+                if entry and (entry['buy'] or entry['sell']):
+                    result[label] = entry
+                    print(f"    ✓ {label}: buy={len(entry['buy'])}, sell={len(entry['sell'])}", file=sys.stderr)
+                else:
+                    print(f"    - {label}: empty", file=sys.stderr)
+            except Exception as e:
+                print(f"    ✗ {label}: {e}", file=sys.stderr)
 
         if result:
             return {'date': date_str, 'data': result}
 
-    print("  투자자 거래: 모든 후보일 실패", file=sys.stderr)
+    print("  KRX 투자자 거래: 모든 후보일 실패", file=sys.stderr)
     return {}
 
 
