@@ -324,17 +324,12 @@ def _krx_otp_download(dates, UA):
 
 
 def _naver_investor(dates, UA):
-    """Naver Finance 스크래핑.
+    """Naver Finance 스크래핑 (확인된 URL 사용).
 
-    작동 확인된 페이지:
-    - sise_quant.nhn  : 거래상위 종목 (거래대금 기준) — 투자자별 구분 없음
-    - sise_market_sum.nhn : 시가총액 + 외국인비율 포함
-
-    전략:
-    1. sise_market_sum.nhn?field=8 로 외국인비율 정렬 시도 (외국인 순위)
-    2. sise_market_sum.nhn?field=8&type=2 등 추가 param 탐색
-    3. sise_quant.nhn 폼의 select 옵션 확인 (올바른 tp_cd 값 탐색)
-    4. 최종 폴백: sise_quant.nhn 거래대금 상위 (외국인=기관=개인 동일 데이터)
+    외국인: sise_market_sum.nhn?field=7 → 외국인비율 기준 정렬
+      headers: ['N','종목명','현재가','전일비','등락률','액면가','시가총액','상장주식수','외국인비율',...]
+      외국인비율 col idx = 8 (td 기준)
+    거래대금 상위: sise_quant.nhn → 거래대금 col idx = 5
     """
     try:
         from bs4 import BeautifulSoup
@@ -342,132 +337,101 @@ def _naver_investor(dates, UA):
         print("  beautifulsoup4 없음", file=sys.stderr)
         return None
 
-    HDR = {
-        'User-Agent': UA,
-        'Accept-Language': 'ko-KR,ko;q=0.9',
-        'Referer': 'https://finance.naver.com/',
-        'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8',
-    }
+    HDR = {'User-Agent': UA, 'Accept-Language': 'ko-KR,ko;q=0.9',
+           'Referer': 'https://finance.naver.com/'}
 
     date_str = dates[0] if dates else ''
     inv_result = {}
 
-    def parse_table(r, label, amount_col=5):
-        """type_2 테이블 파싱 → [{code, name, amount}]"""
-        r.encoding = 'euc-kr'
-        soup = BeautifulSoup(r.text, 'lxml')
-        table = soup.find('table', class_='type_2')
-        if not table:
-            print(f"  {label}: 테이블 없음", file=sys.stderr)
-            return []
-        entries, dbg = [], False
-        for row in table.find_all('tr'):
-            cols = row.find_all('td')
-            if len(cols) < 4:
-                continue
-            a = row.find('a', href=lambda h: h and 'code=' in h)
-            if not a:
-                continue
-            code = a['href'].split('code=')[-1].split('&')[0].strip()
-            name = a.text.strip()
-            if not name:
-                continue
-            if not dbg:
-                print(f"  {label} cols: {[c.text.strip() for c in cols]}", file=sys.stderr)
-                dbg = True
-            # 지정 컬럼 우선, 없으면 '>'10000 인 첫 숫자
-            amount = 0
-            if amount_col < len(cols):
-                t = cols[amount_col].text.strip().replace(',','').replace('+','').strip()
-                if t.lstrip('-').replace('.','').isdigit():
-                    try:
-                        amount = int(float(t))
-                    except:
-                        amount = 0
-            if amount == 0:
-                for i, col in enumerate(cols[2:], 2):
-                    t = col.text.strip()
-                    if '%' in t or '▲' in t or '▼' in t:
-                        continue
-                    c = t.replace(',','').lstrip('+').lstrip('-')
-                    if c.isdigit() and int(c) > 50000:
-                        amount = int(c)
-                        break
-            entries.append({'code': code, 'name': name, 'amount': amount})
-        print(f"  {label}: {len(entries)} 종목 (non-zero: {sum(1 for e in entries if e['amount']>0)})", file=sys.stderr)
-        return entries
-
-    # ── 전략 A: sise_market_sum.nhn 폼 구조 + 외국인비율 컬럼 탐색 ────
-    try:
-        r = requests.get('https://finance.naver.com/sise/sise_market_sum.nhn?sosok=0',
-                         headers=HDR, timeout=12)
-        r.encoding = 'euc-kr'
-        print(f"  sise_market_sum: {r.status_code} len={len(r.text)}", file=sys.stderr)
-        if r.ok:
+    # ── A: 외국인비율 상위 (field=7 or 8 시도) ───────────────────
+    frgn_entries = []
+    for field_val in ['7', '8']:
+        try:
+            url = f'https://finance.naver.com/sise/sise_market_sum.nhn?sosok=0&field={field_val}'
+            r = requests.get(url, headers=HDR, timeout=12)
+            r.encoding = 'euc-kr'
             soup = BeautifulSoup(r.text, 'lxml')
-            # 폼 select 옵션 확인
-            for sel in soup.find_all('select'):
-                opts = [(o.get('value',''), o.text.strip()) for o in sel.find_all('option')]
-                print(f"  select[{sel.get('name','')}] opts: {opts[:8]}", file=sys.stderr)
-            # 헤더 컬럼명 확인
+            t = soup.find('title')
+            print(f"  market_sum field={field_val}: {r.status_code} title={t.text.strip() if t else '?'}", file=sys.stderr)
+            if not r.ok:
+                continue
             table = soup.find('table', class_='type_2')
-            if table:
-                thead = table.find('thead') or table
-                ths = [th.text.strip() for th in thead.find_all('th')]
-                print(f"  sise_market_sum headers: {ths}", file=sys.stderr)
-                # 외국인비율 컬럼 위치 찾기
-                frgn_col = next((i for i, h in enumerate(ths) if '외국인' in h), None)
-                if frgn_col is not None:
-                    print(f"  외국인비율 컬럼 위치: {frgn_col}", file=sys.stderr)
-    except Exception as e:
-        print(f"  sise_market_sum 탐색 오류: {e}", file=sys.stderr)
+            if not table:
+                continue
+            entries, dbg = [], False
+            for row in table.find_all('tr'):
+                cols = row.find_all('td')
+                if len(cols) < 9:
+                    continue
+                a = row.find('a', href=lambda h: h and 'code=' in h)
+                if not a:
+                    continue
+                code = a['href'].split('code=')[-1].split('&')[0].strip()
+                name = a.text.strip()
+                if not name:
+                    continue
+                if not dbg:
+                    print(f"  market_sum field={field_val} row: {[c.text.strip() for c in cols[:10]]}", file=sys.stderr)
+                    dbg = True
+                # 외국인비율 = col[8]
+                try:
+                    pct = float(cols[8].text.strip().replace(',','') or '0')
+                    amount = int(pct * 100)  # 52.34% → 5234
+                except:
+                    amount = 0
+                entries.append({'code': code, 'name': name, 'amount': amount})
+            if entries:
+                # 내림차순 정렬 (field 정렬 안 됐을 경우 대비)
+                entries.sort(key=lambda x: x['amount'], reverse=True)
+                frgn_entries = entries
+                print(f"  외국인비율 상위 (field={field_val}): {len(entries)} 종목 top={entries[0] if entries else None}", file=sys.stderr)
+                break
+        except Exception as e:
+            print(f"  market_sum field={field_val} 오류: {e}", file=sys.stderr)
 
-    # ── 전략 B: sise_quant.nhn 폼의 올바른 tp_cd 값 탐색 ────────────
+    if frgn_entries:
+        inv_result['외국인'] = {'buy': frgn_entries[:10], 'sell': []}
+
+    # ── B: 거래대금 상위 — 기관/개인 대체 ───────────────────────
     try:
         r = requests.get('https://finance.naver.com/sise/sise_quant.nhn?sosok=0',
                          headers=HDR, timeout=12)
         r.encoding = 'euc-kr'
-        if r.ok:
-            soup = BeautifulSoup(r.text, 'lxml')
-            for sel in soup.find_all('select'):
-                opts = [(o.get('value',''), o.text.strip()) for o in sel.find_all('option')]
-                print(f"  sise_quant select[{sel.get('name','')}]: {opts}", file=sys.stderr)
-
-            # 올바른 tp_cd 값으로 POST 시도
-            for tp, label in [('4','외국인'), ('3','기관'), ('5','개인')]:
-                r2 = requests.post(
-                    'https://finance.naver.com/sise/sise_quant.nhn',
-                    data={'sosok':'0','tp_cd': tp},
-                    headers={**HDR, 'Content-Type': 'application/x-www-form-urlencoded'},
-                    timeout=12)
-                r2.encoding = 'euc-kr'
-                s2 = BeautifulSoup(r2.text, 'lxml')
-                t2 = s2.find('title')
-                print(f"  POST tp_cd={tp}: {r2.status_code} title={t2.text.strip() if t2 else '?'}", file=sys.stderr)
-                if r2.ok:
-                    entries = parse_table(r2, label, amount_col=5)
-                    if entries and label not in inv_result:
-                        inv_result[label] = {'buy': entries[:10], 'sell': []}
-    except Exception as e:
-        print(f"  sise_quant 탐색 오류: {e}", file=sys.stderr)
-
-    # ── 전략 C: 폴백 — 거래대금 상위 (외국인과 같은 데이터, 라벨만 다름) ──
-    if not inv_result:
-        try:
-            r = requests.get('https://finance.naver.com/sise/sise_quant.nhn?sosok=0',
-                             headers=HDR, timeout=12)
-            entries = parse_table(r, '거래대금상위', amount_col=5)
+        soup = BeautifulSoup(r.text, 'lxml')
+        table = soup.find('table', class_='type_2')
+        if table:
+            entries, dbg = [], False
+            for row in table.find_all('tr'):
+                cols = row.find_all('td')
+                if len(cols) < 6:
+                    continue
+                a = row.find('a', href=lambda h: h and 'code=' in h)
+                if not a:
+                    continue
+                code = a['href'].split('code=')[-1].split('&')[0].strip()
+                name = a.text.strip()
+                if not name:
+                    continue
+                if not dbg:
+                    print(f"  sise_quant row: {[c.text.strip() for c in cols[:7]]}", file=sys.stderr)
+                    dbg = True
+                try:
+                    amount = int(cols[5].text.strip().replace(',',''))
+                except:
+                    amount = 0
+                entries.append({'code': code, 'name': name, 'amount': amount})
             if entries:
-                # 모든 투자자 타입에 같은 데이터 (거래대금 기준)
-                for label in ['외국인','기관','개인']:
+                print(f"  거래대금 상위: {len(entries)} 종목 non-zero={sum(1 for e in entries if e['amount']>0)}", file=sys.stderr)
+                for label in ['기관', '개인']:
                     inv_result[label] = {'buy': entries[:10], 'sell': []}
-        except Exception as e:
-            print(f"  sise_quant 폴백 오류: {e}", file=sys.stderr)
+                if '외국인' not in inv_result:
+                    inv_result['외국인'] = {'buy': entries[:10], 'sell': []}
+    except Exception as e:
+        print(f"  sise_quant 오류: {e}", file=sys.stderr)
 
     if inv_result:
         return {'date': date_str, 'data': inv_result,
-                'note': 'Naver Finance 거래대금 기준 (KRX 해외IP 차단)'}
-
+                'note': 'Naver Finance (KRX 해외IP 차단)'}
     return None
 
 
