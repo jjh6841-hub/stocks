@@ -757,7 +757,7 @@ export default function StockDashboard() {
         )}
 
         {/* ── 메인: 좌(지수+섹터+투자자+분석) / 우(탭패널) ────────────── */}
-        <div style={{display:'grid',gridTemplateColumns:'1fr 500px',gap:'12px',alignItems:'start'}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 650px',gap:'12px',alignItems:'start'}}>
 
           {/* 좌열 */}
           <div>
@@ -809,8 +809,16 @@ export default function StockDashboard() {
             <MarketAnalysis quotes={quotes} fg={fg} loading={loading}/>
           </div>
 
-          {/* 우열: 6-탭 패널 */}
-          <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',overflow:'hidden',position:'sticky',top:'58px'}}>
+          {/* 우열: 캘린더 + 탭패널 */}
+          <div style={{position:'sticky',top:'58px',display:'flex',flexDirection:'column',gap:'10px'}}>
+
+            {/* 캘린더 상시 표시 */}
+            <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',padding:'10px'}}>
+              <GoogleCalendar events={CALENDAR} today={today}/>
+            </div>
+
+            {/* 탭패널 */}
+            <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',overflow:'hidden'}}>
             {/* 탭 바 */}
             <div style={{display:'flex',borderBottom:'1px solid #1a2535',background:'#060d1a',overflowX:'auto'}}>
               <button style={tabS('news')}  onClick={()=>setTab('news')}>📰 뉴스</button>
@@ -819,7 +827,7 @@ export default function StockDashboard() {
               <button style={tabS('com')}   onClick={()=>setTab('com')}>🪙 원자재</button>
             </div>
 
-            <div style={{padding:'10px',maxHeight:'calc(100vh - 130px)',overflowY:'auto'}}>
+            <div style={{padding:'10px',maxHeight:'40vh',overflowY:'auto'}}>
               {/* 뉴스 */}
               {tab==='news'&&(
                 <div>
@@ -920,13 +928,8 @@ export default function StockDashboard() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* ── 전체 너비 캘린더 ──────────────────────────────────── */}
-        <div style={{marginTop:'12px'}}>
-          <div style={{fontSize:'11px',letterSpacing:'2px',color:'#40c4ff',marginBottom:'8px'}}>📅 경제 캘린더</div>
-          <GoogleCalendar events={CALENDAR} today={today}/>
+            </div>{/* 탭패널 닫기 */}
+          </div>{/* 우열 닫기 */}
         </div>
 
         <div style={{borderTop:'1px solid #1a2535',marginTop:'12px',paddingTop:'10px',display:'flex',justifyContent:'space-between',fontSize:'11px',color:'#37474f',flexWrap:'wrap',gap:'6px'}}>
