@@ -527,6 +527,153 @@ const TVChart: React.FC<{sym:string;h?:number}> = ({sym,h=420}) => {
 };
 
 // ── 👥 투자자별 순매수 패널 ────────────────────────────────────────────
+// ── 시장 전망 컴포넌트 ────────────────────────────────────────────────────
+const MarketOutlook: React.FC<{quotes:Record<string,Quote>;fg:{value:number;label:string};news:any[];loading:boolean}> = ({quotes,fg,news,loading}) => {
+  const now = new Date();
+
+  // 지수 분석
+  const idxData = IDX_META.map(m=>({...m,pct:quotes[m.yf]?.changePct??0,ok:!!quotes[m.yf]}));
+  const kospi = idxData.find(m=>m.sym==='KOSPI');
+  const spx   = idxData.find(m=>m.sym==='SPX');
+  const ndx   = idxData.find(m=>m.sym==='NDX');
+  const upCnt = idxData.filter(m=>m.ok&&m.pct>0).length;
+  const dnCnt = idxData.filter(m=>m.ok&&m.pct<0).length;
+
+  // 섹터 분석
+  const secData = SECTOR_DEF.map(s=>({...s,pct:quotes[s.yf]?.changePct??0,ok:!!quotes[s.yf]}));
+  const topSec  = [...secData].filter(s=>s.ok).sort((a,b)=>b.pct-a.pct).slice(0,2);
+  const botSec  = [...secData].filter(s=>s.ok).sort((a,b)=>a.pct-b.pct).slice(0,1);
+
+  // 종합 심리
+  const fgV = fg.value;
+  const sentiment = fgV>=60?'강세':fgV<=30?'약세':'중립';
+  const sentColor = fgV>=60?'#00e676':fgV<=30?'#ff5252':'#ffd740';
+
+  // 뉴스 키워드 요약
+  const trumpCnt  = news.filter(n=>n.isTrump).length;
+  const fedCnt    = news.filter(n=>n.category==='macro').length;
+  const techCnt   = news.filter(n=>n.category==='tech').length;
+
+  // 향후 7일 주요 이벤트
+  const today = now.toISOString().slice(0,10);
+  const next7 = new Date(now); next7.setDate(next7.getDate()+7);
+  const upcoming = CALENDAR
+    .filter(e=>e.date>=today && e.date<=next7.toISOString().slice(0,10) && e.imp==='high')
+    .sort((a,b)=>a.date.localeCompare(b.date))
+    .slice(0,4);
+
+  // 전망 판단
+  const outlookLines: {icon:string;text:string;color:string}[] = [];
+
+  if(fgV<=25) outlookLines.push({icon:'⚠️',text:'극단적 공포 구간 — 단기 반등 가능성이 있으나 추세 전환 확인 필요',color:'#ff8a65'});
+  else if(fgV<=40) outlookLines.push({icon:'🔴',text:'공포 구간 — 방어적 접근 권장, 저점 분할 매수 고려',color:'#ff5252'});
+  else if(fgV>=75) outlookLines.push({icon:'🟡',text:'과열 구간 — 차익실현 압력 증가, 추가 매수 시 신중 필요',color:'#ffd740'});
+  else if(fgV>=55) outlookLines.push({icon:'🟢',text:'낙관 구간 — 추세 지속 가능성, 모멘텀 종목 주목',color:'#00e676'});
+  else             outlookLines.push({icon:'⚪',text:'중립 구간 — 선별적 접근, 실적·지표 발표 전후 변동성 주의',color:'#b0c4cc'});
+
+  if(upCnt>=6)       outlookLines.push({icon:'📈',text:`글로벌 ${upCnt}/8개 지수 상승 — 위험선호 심리 우세`,color:'#00e676'});
+  else if(dnCnt>=6)  outlookLines.push({icon:'📉',text:`글로벌 ${dnCnt}/8개 지수 하락 — 리스크 회피 국면`,color:'#ff5252'});
+
+  if(trumpCnt>=3)    outlookLines.push({icon:'🏛️',text:`트럼프 관세·무역 뉴스 ${trumpCnt}건 — 수출주 변동성 확대 주의`,color:'#ff9100'});
+  if(fedCnt>=3)      outlookLines.push({icon:'🏦',text:`연준·금리 관련 뉴스 활발 — 금리 민감 섹터(바이오·성장주) 주의`,color:'#ffd740'});
+  if(techCnt>=3)     outlookLines.push({icon:'💡',text:`테크·반도체 뉴스 집중 — AI 섹터 방향성 주시`,color:'#40c4ff'});
+
+  // 추천 종목 (상위 섹터 내 주요 종목)
+  const watchStocks: {name:string;sym:string;reason:string;color:string}[] = [];
+  topSec.forEach(s=>{
+    const topStock = s.stocks[0];
+    const sName = STOCK_NAME[topStock]||topStock;
+    watchStocks.push({name:sName, sym:topStock, reason:`${s.name} 섹터 강세 수혜`, color:'#00e676'});
+  });
+  if(fgV<=35) {
+    watchStocks.push({name:'금 (GOLD)',sym:'GC=F',reason:'공포 구간 안전자산 선호',color:'#ffd740'});
+  }
+  if(kospi&&kospi.pct<-1 && spx&&spx.pct>0) {
+    watchStocks.push({name:'SK하이닉스',sym:'000660.KS',reason:'KOSPI 약세·미국 강세 괴리 — 반등 기대',color:'#40c4ff'});
+  }
+
+  return (
+    <div style={{padding:'4px 0'}}>
+      {/* 업데이트 시각 */}
+      <div style={{fontSize:'10px',color:'#607d8b',marginBottom:'12px'}}>
+        🔄 {loading?'로딩 중...':now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} 기준 · 10분 자동 갱신
+      </div>
+
+      {/* 공포탐욕 요약 */}
+      <div style={{background:'#06111f',borderRadius:'8px',padding:'10px 12px',marginBottom:'10px',border:`1px solid ${sentColor}44`}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span style={{fontSize:'12px',color:'#b0c4cc'}}>공포탐욕 지수</span>
+          <span style={{fontSize:'20px',fontWeight:'800',color:sentColor}}>{fgV}</span>
+        </div>
+        <div style={{fontSize:'13px',fontWeight:'700',color:sentColor,marginTop:'2px'}}>{sentiment} — {fg.label}</div>
+        <div style={{height:'4px',background:'#1a2535',borderRadius:'2px',marginTop:'8px'}}>
+          <div style={{height:'100%',width:`${fgV}%`,background:`linear-gradient(90deg,#ff5252,#ffd740 50%,#00e676)`,borderRadius:'2px'}}/>
+        </div>
+      </div>
+
+      {/* 전망 판단 */}
+      <div style={{marginBottom:'10px'}}>
+        <div style={{fontSize:'11px',color:'#8ea5b0',marginBottom:'6px',letterSpacing:'1px'}}>📊 종합 전망</div>
+        {outlookLines.map((l,i)=>(
+          <div key={i} style={{display:'flex',gap:'6px',padding:'6px 0',borderBottom:'1px solid #1a2535',alignItems:'flex-start'}}>
+            <span style={{fontSize:'13px',flexShrink:0}}>{l.icon}</span>
+            <span style={{fontSize:'12px',color:l.color,lineHeight:'1.5'}}>{l.text}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* 주목 섹터 */}
+      {topSec.length>0&&(
+        <div style={{marginBottom:'10px'}}>
+          <div style={{fontSize:'11px',color:'#8ea5b0',marginBottom:'6px',letterSpacing:'1px'}}>🔥 강세 섹터</div>
+          {topSec.map(s=>(
+            <div key={s.yf} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 8px',background:'#06111f',borderRadius:'6px',marginBottom:'4px',borderLeft:'2px solid #00e676'}}>
+              <span style={{fontSize:'13px',color:'#eceff1'}}>{s.icon} {s.name}</span>
+              <span style={{fontSize:'13px',fontWeight:'700',color:'#00e676'}}>▲{Math.abs(s.pct).toFixed(2)}%</span>
+            </div>
+          ))}
+          {botSec.map(s=>(
+            <div key={s.yf} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'5px 8px',background:'#06111f',borderRadius:'6px',marginBottom:'4px',borderLeft:'2px solid #ff5252'}}>
+              <span style={{fontSize:'13px',color:'#eceff1'}}>{s.icon} {s.name}</span>
+              <span style={{fontSize:'13px',fontWeight:'700',color:'#ff5252'}}>▼{Math.abs(s.pct).toFixed(2)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 주목 종목 */}
+      {watchStocks.length>0&&(
+        <div style={{marginBottom:'10px'}}>
+          <div style={{fontSize:'11px',color:'#8ea5b0',marginBottom:'6px',letterSpacing:'1px'}}>💡 주목 종목</div>
+          {watchStocks.map((s,i)=>(
+            <div key={i} style={{padding:'6px 8px',background:'#06111f',borderRadius:'6px',marginBottom:'4px',borderLeft:`2px solid ${s.color}`}}>
+              <div style={{fontSize:'13px',color:'#eceff1',fontWeight:'600'}}>{s.name}</div>
+              <div style={{fontSize:'11px',color:'#8ea5b0',marginTop:'2px'}}>{s.reason}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 향후 주요 이벤트 */}
+      {upcoming.length>0&&(
+        <div>
+          <div style={{fontSize:'11px',color:'#8ea5b0',marginBottom:'6px',letterSpacing:'1px'}}>📅 향후 7일 주요 이벤트</div>
+          {upcoming.map(e=>(
+            <div key={e.id} style={{display:'flex',gap:'8px',padding:'5px 0',borderBottom:'1px solid #1a2535',alignItems:'flex-start'}}>
+              <span style={{fontSize:'11px',color:'#607d8b',flexShrink:0,marginTop:'1px'}}>{e.date.slice(5)}</span>
+              <span style={{fontSize:'12px',color:'#eceff1'}}>{e.title}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{marginTop:'12px',fontSize:'10px',color:'#607d8b',lineHeight:'1.6'}}>
+        ※ 본 전망은 현재 시장 데이터 기반 자동 분석이며 투자 권유가 아닙니다.
+      </div>
+    </div>
+  );
+};
+
 const INV_TYPES = ['외국인','기관','연기금','개인'] as const;
 const INV_COLORS: Record<string,string> = {
   '외국인':'#40c4ff','기관':'#69f0ae','연기금':'#ffd740','개인':'#ff8a65',
@@ -613,7 +760,7 @@ export default function StockDashboard() {
   const [sparks,setSparks]= useState<Record<string,number[]>>({});
   const [loading,setLoad] = useState(true);
   const [stale,setStale]  = useState(false);
-  const [tab,setTab]      = useState<'news'|'coin'|'forex'|'com'>('news');
+  const [tab,setTab]      = useState<'news'|'coin'|'forex'|'com'|'outlook'>('news');
   const [nf,setNF]        = useState('all');
   const [alerts,setAlerts]= useState<{id:number;text:string;type:string}[]>([]);
 
@@ -807,10 +954,11 @@ export default function StockDashboard() {
             <div style={{background:'#0d1b2e',border:'1px solid #1a3050',borderRadius:'8px',overflow:'hidden'}}>
             {/* 탭 바 */}
             <div style={{display:'flex',borderBottom:'1px solid #1a2535',background:'#060d1a',overflowX:'auto'}}>
-              <button style={tabS('news')}  onClick={()=>setTab('news')}>📰 뉴스</button>
-              <button style={tabS('coin')}  onClick={()=>setTab('coin')}>₿ 코인</button>
-              <button style={tabS('forex')} onClick={()=>setTab('forex')}>💱 환율</button>
-              <button style={tabS('com')}   onClick={()=>setTab('com')}>🪙 원자재</button>
+              <button style={tabS('news')}    onClick={()=>setTab('news')}>📰 뉴스</button>
+              <button style={tabS('coin')}    onClick={()=>setTab('coin')}>₿ 코인</button>
+              <button style={tabS('forex')}   onClick={()=>setTab('forex')}>💱 환율</button>
+              <button style={tabS('com')}     onClick={()=>setTab('com')}>🪙 원자재</button>
+              <button style={tabS('outlook')} onClick={()=>setTab('outlook')}>🔮 예상</button>
             </div>
 
             <div style={{padding:'10px',maxHeight:'calc(100vh - 130px)',overflowY:'auto'}}>
@@ -913,6 +1061,9 @@ export default function StockDashboard() {
                   })}
                 </div>
               )}
+
+              {/* 예상 */}
+              {tab==='outlook'&&<MarketOutlook quotes={quotes} fg={fg} news={news} loading={loading}/>}
             </div>
             </div>{/* 탭패널 box 닫기 */}
           </div>{/* 우열 sticky 닫기 */}
