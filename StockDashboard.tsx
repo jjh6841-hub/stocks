@@ -347,6 +347,8 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
   const [yr,setYr]=useState(td.getFullYear());
   const [mo,setMo]=useState(td.getMonth());
   const [sel,setSel]=useState<typeof CALENDAR[0]|null>(null);
+  const [expanded,setExpanded]=useState<Set<string>>(new Set());
+  const toggleDay=(ds:string)=>setExpanded(prev=>{const n=new Set(prev);n.has(ds)?n.delete(ds):n.add(ds);return n;});
 
   const prev=()=>{ if(mo===0){setYr(y=>y-1);setMo(11);}else setMo(m=>m-1); };
   const next=()=>{ if(mo===11){setYr(y=>y+1);setMo(0);}else setMo(m=>m+1); };
@@ -387,17 +389,22 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
         {weeks.map((wk,wi)=>(
           <div key={wi} style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'3px'}}>
             {wk.map((day,di)=>{
-              if(!day) return <div key={di} style={{minHeight:'110px',background:'rgba(6,13,26,.6)',borderRadius:'6px'}}/>;
+              if(!day) return <div key={di} style={{height:'110px',background:'rgba(6,13,26,.6)',borderRadius:'6px'}}/>;
               const ds=`${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
               const isT=ds===today;
               const dayEvs=events.filter(e=>e.date===ds);
               const isPast=ds<today;
+              const isExp=expanded.has(ds);
+              const visible=isExp?dayEvs:dayEvs.slice(0,3);
+              const extra=dayEvs.length-3;
               return (
                 <div key={di} style={{
+                  height:isExp?'auto':'110px',
                   minHeight:'110px',
                   background:isT?'rgba(64,196,255,.08)':isPast?'rgba(10,22,40,.5)':'#0a1628',
                   borderRadius:'6px',padding:'6px',
                   border:isT?'1px solid #40c4ff66':'1px solid #1a2535',
+                  overflow:'hidden',
                 }}>
                   <div style={{
                     width:'26px',height:'26px',borderRadius:'50%',
@@ -408,7 +415,7 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
                     color:isT?'#060d1a':di===0?'#ff5252':di===6?'#5c9eff':isPast?'#607d8b':'#b0c4cc',
                   }}>{day}</div>
                   <div style={{display:'flex',flexDirection:'column',gap:'3px'}}>
-                    {dayEvs.map(ev=>{
+                    {visible.map(ev=>{
                       const ec=EVT_COLOR[ev.type]??'#8ea5b0';
                       return (
                         <div key={ev.id}
@@ -423,6 +430,18 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
                         </div>
                       );
                     })}
+                    {!isExp&&extra>0&&(
+                      <div onClick={(e)=>{e.stopPropagation();toggleDay(ds);}}
+                        style={{fontSize:'11px',color:'#40c4ff',cursor:'pointer',paddingLeft:'3px',marginTop:'1px',userSelect:'none'}}>
+                        +{extra}개 더보기 ▾
+                      </div>
+                    )}
+                    {isExp&&dayEvs.length>3&&(
+                      <div onClick={(e)=>{e.stopPropagation();toggleDay(ds);}}
+                        style={{fontSize:'11px',color:'#8ea5b0',cursor:'pointer',paddingLeft:'3px',marginTop:'1px',userSelect:'none'}}>
+                        ▴ 접기
+                      </div>
+                    )}
                   </div>
                 </div>
               );

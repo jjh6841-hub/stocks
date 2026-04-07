@@ -713,6 +713,8 @@ const CalendarPage: React.FC<{today:string}> = ({today}) => {
   const [mo,setMo]=useState(td.getMonth());
   const [typeFilter,setTypeFilter]=useState<string>('all');
   const [sel,setSel]=useState<any|null>(null);
+  const [expanded,setExpanded]=useState<Set<string>>(new Set());
+  const toggleDay=(ds:string)=>setExpanded(prev=>{const n=new Set(prev);n.has(ds)?n.delete(ds):n.add(ds);return n;});
 
   const prev=()=>{if(mo===0){setYr(y=>y-1);setMo(11);}else setMo(m=>m-1);};
   const next=()=>{if(mo===11){setYr(y=>y+1);setMo(0);}else setMo(m=>m+1);};
@@ -792,15 +794,18 @@ const CalendarPage: React.FC<{today:string}> = ({today}) => {
           {weeks.map((wk,wi)=>(
             <div key={wi} style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'4px'}}>
               {wk.map((day,di)=>{
-                if(!day) return <div key={di} style={{minHeight:'110px',background:'rgba(6,13,26,.5)',borderRadius:'8px'}}/>;
+                if(!day) return <div key={di} style={{height:'110px',background:'rgba(6,13,26,.5)',borderRadius:'8px'}}/>;
                 const ds=`${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 const isT=ds===today, isPast=ds<today;
                 const dayEvs=filtered.filter(e=>e.date===ds);
+                const isExp=expanded.has(ds);
+                const visible=isExp?dayEvs:dayEvs.slice(0,3);
+                const extra=dayEvs.length-3;
                 return (
-                  <div key={di} style={{minHeight:'110px',background:isT?'rgba(64,196,255,.1)':isPast?'rgba(10,22,40,.5)':'#0a1628',borderRadius:'8px',padding:'5px',border:isT?'1px solid #40c4ff77':'1px solid #1a2535'}}>
+                  <div key={di} style={{height:isExp?'auto':'110px',minHeight:'110px',overflow:'hidden',background:isT?'rgba(64,196,255,.1)':isPast?'rgba(10,22,40,.5)':'#0a1628',borderRadius:'8px',padding:'5px',border:isT?'1px solid #40c4ff77':'1px solid #1a2535'}}>
                     <div style={{width:'26px',height:'26px',borderRadius:'50%',background:isT?'#40c4ff':'transparent',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'4px',fontSize:'13px',fontWeight:isT?'700':'500',color:isT?'#060d1a':di===0?'#ff5252':di===6?'#5c9eff':isPast?'#607d8b':'#b0c4cc'}}>{day}</div>
                     <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
-                      {dayEvs.slice(0,3).map(ev=>{
+                      {visible.map(ev=>{
                         const ec=EVT_COLOR[ev.type]??'#8ea5b0';
                         return (
                           <div key={ev.id} onClick={()=>setSel(sel?.id===ev.id?null:ev)}
@@ -809,7 +814,18 @@ const CalendarPage: React.FC<{today:string}> = ({today}) => {
                           </div>
                         );
                       })}
-                      {dayEvs.length>3&&<div style={{fontSize:'9px',color:'#8ea5b0',paddingLeft:'4px'}}>+{dayEvs.length-3}개</div>}
+                      {!isExp&&extra>0&&(
+                        <div onClick={(e)=>{e.stopPropagation();toggleDay(ds);}}
+                          style={{fontSize:'9px',color:'#40c4ff',cursor:'pointer',paddingLeft:'3px',marginTop:'1px',userSelect:'none'}}>
+                          +{extra}개 더보기 ▾
+                        </div>
+                      )}
+                      {isExp&&dayEvs.length>3&&(
+                        <div onClick={(e)=>{e.stopPropagation();toggleDay(ds);}}
+                          style={{fontSize:'9px',color:'#8ea5b0',cursor:'pointer',paddingLeft:'3px',marginTop:'1px',userSelect:'none'}}>
+                          ▴ 접기
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
