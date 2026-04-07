@@ -389,7 +389,7 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
         {weeks.map((wk,wi)=>(
           <div key={wi} style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'3px'}}>
             {wk.map((day,di)=>{
-              if(!day) return <div key={di} style={{height:'110px',background:'rgba(6,13,26,.6)',borderRadius:'6px'}}/>;
+              if(!day) return <div key={di} style={{minHeight:'110px',background:'rgba(6,13,26,.6)',borderRadius:'6px'}}/>;
               const ds=`${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
               const isT=ds===today;
               const dayEvs=events.filter(e=>e.date===ds);
@@ -399,12 +399,10 @@ const GoogleCalendar: React.FC<{events:typeof CALENDAR;today:string}> = ({events
               const extra=dayEvs.length-3;
               return (
                 <div key={di} style={{
-                  height:isExp?'auto':'110px',
                   minHeight:'110px',
                   background:isT?'rgba(64,196,255,.08)':isPast?'rgba(10,22,40,.5)':'#0a1628',
                   borderRadius:'6px',padding:'6px',
                   border:isT?'1px solid #40c4ff66':'1px solid #1a2535',
-                  overflow:'hidden',
                 }}>
                   <div style={{
                     width:'26px',height:'26px',borderRadius:'50%',

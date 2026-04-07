@@ -794,7 +794,7 @@ const CalendarPage: React.FC<{today:string}> = ({today}) => {
           {weeks.map((wk,wi)=>(
             <div key={wi} style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:'4px'}}>
               {wk.map((day,di)=>{
-                if(!day) return <div key={di} style={{height:'110px',background:'rgba(6,13,26,.5)',borderRadius:'8px'}}/>;
+                if(!day) return <div key={di} style={{minHeight:'110px',background:'rgba(6,13,26,.5)',borderRadius:'8px'}}/>;
                 const ds=`${yr}-${String(mo+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 const isT=ds===today, isPast=ds<today;
                 const dayEvs=filtered.filter(e=>e.date===ds);
@@ -802,7 +802,7 @@ const CalendarPage: React.FC<{today:string}> = ({today}) => {
                 const visible=isExp?dayEvs:dayEvs.slice(0,3);
                 const extra=dayEvs.length-3;
                 return (
-                  <div key={di} style={{height:isExp?'auto':'110px',minHeight:'110px',overflow:'hidden',background:isT?'rgba(64,196,255,.1)':isPast?'rgba(10,22,40,.5)':'#0a1628',borderRadius:'8px',padding:'5px',border:isT?'1px solid #40c4ff77':'1px solid #1a2535'}}>
+                  <div key={di} style={{minHeight:'110px',background:isT?'rgba(64,196,255,.1)':isPast?'rgba(10,22,40,.5)':'#0a1628',borderRadius:'8px',padding:'5px',border:isT?'1px solid #40c4ff77':'1px solid #1a2535'}}>
                     <div style={{width:'26px',height:'26px',borderRadius:'50%',background:isT?'#40c4ff':'transparent',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:'4px',fontSize:'13px',fontWeight:isT?'700':'500',color:isT?'#060d1a':di===0?'#ff5252':di===6?'#5c9eff':isPast?'#607d8b':'#b0c4cc'}}>{day}</div>
                     <div style={{display:'flex',flexDirection:'column',gap:'2px'}}>
                       {visible.map(ev=>{
