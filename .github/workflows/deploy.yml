@@ -46,6 +46,8 @@ jobs:
       - run: npm install
       - run: chmod +x node_modules/.bin/vite
       - run: npm run build
+        env:
+          GITHUB_PAGES: true
 
       # ── GitHub Pages 배포 ─────────────────────────────────
       - uses: actions/configure-pages@v4
