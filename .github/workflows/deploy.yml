@@ -4,7 +4,7 @@ on:
   push:
     branches: [master]
   schedule:
-    - cron: '*/10 * * * *'   # 10분마다 데이터 갱신 + 재배포
+    - cron: '0 */2 * * 1-5'   # 평일 2시간마다 (월~금, UTC 기준)
   workflow_dispatch:
 
 permissions:
